@@ -71,6 +71,18 @@ export interface Revision {
   by: string;
   change: string;
 }
+/** One entry in a campaign's Activity & Approvals timeline. */
+export interface ActivityEntry {
+  id: string;
+  campaignId: string;
+  at: string;
+  actor: string;
+  kind: "Human" | "Agent" | "System" | "Ops";
+  action: string;
+  object?: string | undefined;
+  outcome?: string | undefined;
+  simulated?: boolean | undefined;
+}
 export interface Campaign {
   id: string;
   clientId: string;
