@@ -711,8 +711,8 @@ export const actions = {
       const mentions = parseMentions(trimmed);
       const p = personFor(s);
       const from: MsgFrom = p?.id ?? "user";
-      const aiMentioned = mentions.filter((m) => m === "clayton" || m === "ua" || m === "creative");
-      const humansMentioned = mentions.filter((m) => !aiMentioned.includes(m));
+      const aiMentioned: string[] = mentions.filter((m) => m === "clayton" || m === "ua" || m === "creative");
+      const humansMentioned: string[] = mentions.filter((m) => !aiMentioned.includes(m));
 
       if (cid === "freebeat" && mentions.includes("clayton") && !collabTask(s)) {
         collabStart(s, p?.id ?? "sarah", trimmed);

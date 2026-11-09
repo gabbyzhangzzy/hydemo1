@@ -510,7 +510,7 @@ function DirectChat({ s }: { s: State }) {
           <div className="font-display text-lg font-semibold">Ask AI AM</div>
         </div>
         <MessageList s={s} cid="direct" msgs={msgs} onOpenTask={setDrawer} onFollowUp={() => {}} />
-        <Composer s={s} cid="direct" disabled={s.role === "ops"} />
+        <ComposerWithPrefill s={s} cid="direct" initial="" />
       </div>
       <Aside s={s} cid="direct" onOpenTask={setDrawer} />
       <TaskDrawer taskId={drawer} onClose={() => setDrawer(null)} />
