@@ -25,6 +25,7 @@ import { Route as ShellTeamRouteImport } from './routes/_shell.team'
 import { Route as ShellWalletRouteImport } from './routes/_shell.wallet'
 import { Route as ShellWorkflowsRouteImport } from './routes/_shell.workflows'
 import { Route as ShellWorkspaceRouteImport } from './routes/_shell.workspace'
+import { Route as ShellCampaignsCampaignIdRouteImport } from './routes/_shell.campaigns.$campaignId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -105,13 +106,19 @@ const ShellWorkspaceRoute = ShellWorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellCampaignsCampaignIdRoute =
+  ShellCampaignsCampaignIdRouteImport.update({
+    id: '/$campaignId',
+    path: '/$campaignId',
+    getParentRoute: () => ShellCampaignsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agents': typeof ShellAgentsRoute
   '/analytics': typeof ShellAnalyticsRoute
   '/brand': typeof ShellBrandRoute
-  '/campaigns': typeof ShellCampaignsRoute
+  '/campaigns': typeof ShellCampaignsRouteWithChildren
   '/capabilities': typeof ShellCapabilitiesRoute
   '/creative': typeof ShellCreativeRoute
   '/ops': typeof ShellOpsRoute
@@ -122,13 +129,14 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof ShellWalletRoute
   '/workflows': typeof ShellWorkflowsRoute
   '/workspace': typeof ShellWorkspaceRoute
+  '/campaigns/$campaignId': typeof ShellCampaignsCampaignIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agents': typeof ShellAgentsRoute
   '/analytics': typeof ShellAnalyticsRoute
   '/brand': typeof ShellBrandRoute
-  '/campaigns': typeof ShellCampaignsRoute
+  '/campaigns': typeof ShellCampaignsRouteWithChildren
   '/capabilities': typeof ShellCapabilitiesRoute
   '/creative': typeof ShellCreativeRoute
   '/ops': typeof ShellOpsRoute
@@ -139,6 +147,7 @@ export interface FileRoutesByTo {
   '/wallet': typeof ShellWalletRoute
   '/workflows': typeof ShellWorkflowsRoute
   '/workspace': typeof ShellWorkspaceRoute
+  '/campaigns/$campaignId': typeof ShellCampaignsCampaignIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -147,7 +156,7 @@ export interface FileRoutesById {
   '/_shell/agents': typeof ShellAgentsRoute
   '/_shell/analytics': typeof ShellAnalyticsRoute
   '/_shell/brand': typeof ShellBrandRoute
-  '/_shell/campaigns': typeof ShellCampaignsRoute
+  '/_shell/campaigns': typeof ShellCampaignsRouteWithChildren
   '/_shell/capabilities': typeof ShellCapabilitiesRoute
   '/_shell/creative': typeof ShellCreativeRoute
   '/_shell/ops': typeof ShellOpsRoute
@@ -158,6 +167,7 @@ export interface FileRoutesById {
   '/_shell/wallet': typeof ShellWalletRoute
   '/_shell/workflows': typeof ShellWorkflowsRoute
   '/_shell/workspace': typeof ShellWorkspaceRoute
+  '/_shell/campaigns/$campaignId': typeof ShellCampaignsCampaignIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/workflows'
     | '/workspace'
+    | '/campaigns/$campaignId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/workflows'
     | '/workspace'
+    | '/campaigns/$campaignId'
   id:
     | '__root__'
     | '/'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/_shell/wallet'
     | '/_shell/workflows'
     | '/_shell/workspace'
+    | '/_shell/campaigns/$campaignId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -333,14 +346,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellWorkspaceRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/campaigns/$campaignId': {
+      id: '/_shell/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof ShellCampaignsCampaignIdRouteImport
+      parentRoute: typeof ShellCampaignsRoute
+    }
   }
 }
+
+interface ShellCampaignsRouteChildren {
+  ShellCampaignsCampaignIdRoute: typeof ShellCampaignsCampaignIdRoute
+}
+
+const ShellCampaignsRouteChildren: ShellCampaignsRouteChildren = {
+  ShellCampaignsCampaignIdRoute: ShellCampaignsCampaignIdRoute,
+}
+
+const ShellCampaignsRouteWithChildren = ShellCampaignsRoute._addFileChildren(
+  ShellCampaignsRouteChildren,
+)
 
 interface ShellRouteChildren {
   ShellAgentsRoute: typeof ShellAgentsRoute
   ShellAnalyticsRoute: typeof ShellAnalyticsRoute
   ShellBrandRoute: typeof ShellBrandRoute
-  ShellCampaignsRoute: typeof ShellCampaignsRoute
+  ShellCampaignsRoute: typeof ShellCampaignsRouteWithChildren
   ShellCapabilitiesRoute: typeof ShellCapabilitiesRoute
   ShellCreativeRoute: typeof ShellCreativeRoute
   ShellOpsRoute: typeof ShellOpsRoute
@@ -357,7 +389,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellAgentsRoute: ShellAgentsRoute,
   ShellAnalyticsRoute: ShellAnalyticsRoute,
   ShellBrandRoute: ShellBrandRoute,
-  ShellCampaignsRoute: ShellCampaignsRoute,
+  ShellCampaignsRoute: ShellCampaignsRouteWithChildren,
   ShellCapabilitiesRoute: ShellCapabilitiesRoute,
   ShellCreativeRoute: ShellCreativeRoute,
   ShellOpsRoute: ShellOpsRoute,
