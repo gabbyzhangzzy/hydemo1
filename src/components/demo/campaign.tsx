@@ -134,7 +134,7 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
             <Button
               onClick={() => {
                 const d = Number(daily), t = Number(cap);
-                if (!(d > 0) || !(t >= d)) return toast.error("Daily budget must be > 0 and cap ≥ daily.");
+                if (!(d > 0) || !(t >= d)) { toast.error("Daily budget must be > 0 and cap ≥ daily."); return; }
                 actions.editCampaign({ dailyBudget: d, totalCap: t }, `Budget ${money(d)}/day, cap ${money(t)}`);
                 setBudgetOpen(false);
               }}

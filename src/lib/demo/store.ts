@@ -381,7 +381,7 @@ export function isReady(s: State) {
 export function mainTaskView(s: State): { status: TaskStatus; detail: string } | null {
   const t = s.tasks.find((x) => x.id === MAIN_TASK_ID);
   if (!t) return null;
-  if (t.stage < t.stages.length) return { status: "running", detail: `Stage ${t.stage + 1}/6 · ${t.stages[t.stage].stage}` };
+  if (t.stage < t.stages.length) return { status: "running", detail: `Stage ${t.stage + 1}/6 · ${t.stages[t.stage]?.stage ?? ""}` };
   const c = s.campaign;
   if (c?.status === "live_verified") return { status: "completed", detail: "Campaign Live Verified" };
   if (s.launch.error) return { status: "failed", detail: s.launch.error };
