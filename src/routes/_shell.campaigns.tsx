@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, BarChart3, Bot, CheckCircle2, ChevronDown, Plus, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,13 @@ type SortKey = "name" | "status" | "spend" | "results" | "cost" | "ctr" | "cpm";
 const PAGE_SIZE = 8;
 
 function Campaigns() {
+  // /campaigns/$campaignId nests under this route — render only the child there.
+  const isDetail = useLocation({ select: (l) => l.pathname.startsWith("/campaigns/") });
+  if (isDetail) return <Outlet />;
+  return <CampaignsHub />;
+}
+
+function CampaignsHub() {
   const s = useDemo();
   const f = useAnalyticsFilters();
   const navigate = useNavigate();
