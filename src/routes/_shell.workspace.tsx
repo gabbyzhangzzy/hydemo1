@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AtSign, Bot, CheckCircle2, ChevronDown, Circle, Hash, Loader2, Lock, Play, RotateCcw, Send, Sparkles, User, Users, Wand2 } from "lucide-react";
+import { AtSign, BarChart3, Bot, Check, CheckCircle2, ChevronDown, Circle, Hash, Layers, ListChecks, Loader2, Lock, MoreHorizontal, Play, RotateCcw, Send, Slack, Smartphone, Sparkles, User, Users, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { Demo, Empty, Phase, Pill, TaskPill } from "@/components/demo/bits";
+import { Demo, Phase, Pill, TaskPill } from "@/components/demo/bits";
+import { DemoControls, MobileNav, Notifications, useShellUtils } from "@/components/demo/shell";
 import { LaunchPanel, ProposalCard, ReadinessPanel, ReportSummary } from "@/components/demo/campaign";
 import { actions, AI_TEAM, can, channelName, MAIN_PROMPT, MAIN_TASK_ID, MENTIONABLES, PEOPLE, personFor, taskView, UA_ANALYSIS, useDemo, type Msg, type MsgFrom, type PersonId, type State, type Task } from "@/lib/demo/store";
 import { pageHead } from "@/lib/demo/head";
@@ -48,28 +49,33 @@ function RichText({ text }: { text: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Channel rail                                                        */
+/* Channel switcher (replaces the permanent channel column)            */
 /* ------------------------------------------------------------------ */
-function ChannelRail({ s, cid }: { s: State; cid: string }) {
+function ChannelSwitcher({ s, cid }: { s: State; cid: string }) {
   const channels = s.clients.filter((c) => c.biz === "bluefocus");
+  const client = s.clients.find((c) => c.id === cid);
   return (
-    <div className="ai-surface hidden w-52 shrink-0 flex-col rounded-2xl p-3 xl:flex">
-      <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-bold uppercase tracking-wider text-ai-panel-muted"><Users className="size-3.5" /> BlueFocus</div>
-      <div className="space-y-0.5">
-        {channels.map((c) => {
-          const active = cid === c.id;
-          return (
-            <button key={c.id} onClick={() => actions.setClient(c.id)} className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm", active ? "bg-ai-panel-elevated font-semibold text-ai-panel-foreground" : "text-ai-panel-muted hover:bg-ai-panel-elevated/60")}>
-              <Hash className="size-3.5 shrink-0" /> <span className="truncate">{channelName(s, c.id)}</span>
-            </button>
-          );
-        })}
-        <div className="flex items-center gap-2 px-2.5 py-2 text-sm text-ai-panel-muted/60">
-          <Users className="size-3.5 shrink-0" /> Agency Overview <Phase p="P2" />
+    <DropdownMenu>
+      <DropdownMenuTrigger className="group flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left outline-none hover:bg-ai-panel-elevated focus-visible:ring-2 focus-visible:ring-brand" aria-label="Switch channel">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1 font-display text-base font-semibold"><Hash className="size-4 shrink-0 text-brand" /><span className="truncate">{channelName(s, cid)}</span><ChevronDown className="size-4 shrink-0 text-ai-panel-muted" /></div>
+          <div className="flex items-center gap-1 truncate text-[11px] text-ai-panel-muted"><Lock className="size-3 shrink-0" /> Internal · BlueFocus / {client?.name}</div>
         </div>
-      </div>
-      <div className="mt-auto px-2 pt-3 text-[10px] leading-relaxed text-ai-panel-muted">Each channel is a separate client workspace. Messages, tasks and data never mix.</div>
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuLabel>BlueFocus client channels</DropdownMenuLabel>
+        {channels.map((c) => (
+          <DropdownMenuItem key={c.id} onClick={() => actions.setClient(c.id)}>
+            <Hash /> <span className="truncate">{channelName(s, c.id)}</span>
+            <span className="text-[10px] text-muted-foreground">{c.name}</span>
+            {cid === c.id && <Check className="ml-auto" />}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem disabled><Users /> Agency Overview <Phase p="P2" /></DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <div className="px-2 py-1.5 text-[10px] text-muted-foreground">Each channel is a separate client workspace. Messages, tasks and data never mix.</div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -93,7 +99,7 @@ function MembersPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="ai"><Users /> Members</Button>
+        <button className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-ai-panel-elevated" aria-label="Members"><AvatarStack /></button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72">
         <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Agency team</div>
@@ -130,9 +136,9 @@ function PersonSwitcher({ s }: { s: State }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="ai">
-          <span className="grid size-5 place-items-center rounded-full bg-brand text-[9px] font-bold text-brand-foreground">{p.initials}</span>
-          Acting as {p.name} <ChevronDown className="size-3.5" />
+        <Button size="sm" variant="ghost" className="text-ai-panel-muted hover:bg-ai-panel-elevated hover:text-ai-panel-foreground" title="Change who you're posting as">
+          <span className="grid size-6 place-items-center rounded-full bg-brand text-[10px] font-bold text-brand-foreground">{p.initials}</span>
+          <span className="hidden md:inline">{p.name}</span> <ChevronDown className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
@@ -171,22 +177,29 @@ function GuidedDemo({ s, cid }: { s: State; cid: string }) {
   const step = s.collab.step;
   const done = step >= 9;
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-ai-panel-border bg-ai-panel-elevated/50 px-5 py-2.5">
-      <div className="flex items-center gap-2 text-xs font-semibold text-brand"><Wand2 className="size-3.5" /> Experience Agency + AI Collaboration</div>
-      <div className="flex items-center gap-1">
-        {GUIDED_LABELS.map((_, i) => (
-          <span key={i} className={cn("h-1.5 w-4 rounded-full", i < step ? "bg-success" : i === step && !done ? "bg-brand" : "bg-ai-panel-border")} />
-        ))}
-      </div>
-      {!done ? (
-        <Button size="sm" variant="brand" onClick={() => actions.collabNext()}>{GUIDED_LABELS[step]} →</Button>
-      ) : (
-        <Pill tone="success">Demo complete — deliverable approved internally</Pill>
-      )}
-      {step > 0 && (
-        <Button size="sm" variant="ghost" className="text-ai-panel-muted" onClick={() => actions.resetCollab()}><RotateCcw /> Reset Collaboration Demo</Button>
-      )}
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="ghost" className="text-brand hover:bg-ai-panel-elevated hover:text-brand" title="Guided collaboration demo">
+          <Wand2 /> <span className="hidden xl:inline">Guided demo</span> <span className="text-[10px] text-ai-panel-muted">{Math.min(step, 9)}/9</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 space-y-3">
+        <div className="text-sm font-semibold">Experience Agency + AI Collaboration</div>
+        <ol className="space-y-1 text-xs">
+          {GUIDED_LABELS.map((l, i) => (
+            <li key={l} className={cn("flex items-center gap-2", i < step ? "text-muted-foreground line-through" : i === step ? "font-semibold" : "text-muted-foreground")}>
+              {i < step ? <CheckCircle2 className="size-3.5 text-success" /> : <Circle className={cn("size-3.5", i === step && "text-brand")} />} {l}
+            </li>
+          ))}
+        </ol>
+        {!done ? (
+          <Button size="sm" variant="brand" className="w-full" onClick={() => actions.collabNext()}>{GUIDED_LABELS[step]} →</Button>
+        ) : (
+          <Pill tone="success">Demo complete — deliverable approved internally</Pill>
+        )}
+        {step > 0 && <Button size="sm" variant="ghost" className="w-full" onClick={() => actions.resetCollab()}><RotateCcw /> Reset Collaboration Demo</Button>}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -396,123 +409,211 @@ function TaskDrawer({ taskId, onClose }: { taskId: string | null; onClose: () =>
 /* ------------------------------------------------------------------ */
 /* Message list                                                        */
 /* ------------------------------------------------------------------ */
+const SUGGESTIONS = [
+  { icon: BarChart3, label: "Review campaign performance", text: "@UA Agent give me a quick performance review for this week" },
+  { icon: Layers, label: "Plan a new campaign", text: "@Clayton plan a new campaign test for next month" },
+  { icon: Sparkles, label: "Research creative opportunities", text: "@Creative Agent research creative opportunities based on our top ads" },
+];
+
+function EmptyState({ s, cid }: { s: State; cid: string }) {
+  const name = s.clients.find((c) => c.id === cid)?.name ?? "your";
+  const brandMissing = cid !== "direct" && s.brands[cid]?.status !== "confirmed";
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-14 text-center md:py-20">
+      <div className="grid size-12 place-items-center rounded-2xl bg-brand/15 text-brand"><Sparkles className="size-6" /></div>
+      <h2 className="mt-4 font-display text-2xl font-semibold md:text-3xl">{cid === "direct" ? "Welcome to your AI AM" : `Welcome to ${name}'s Growth Workspace`}</h2>
+      <p className="mt-2 text-sm text-ai-panel-muted">{cid === "direct" ? "Ask for campaigns, creative or a performance check." : "Work together with Clayton, your AI specialists and the rest of your team."}</p>
+      <div className="mt-8 grid w-full gap-2.5 text-left">
+        {cid === "freebeat" && (
+          <button onClick={() => { actions.setPerson("sarah"); actions.sendChannelMessage(cid, MAIN_PROMPT); }} className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm transition-colors hover:border-brand">
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-brand"><Wand2 className="size-3.5" /> Suggested · posted as Sarah</div>
+            {MAIN_PROMPT}
+          </button>
+        )}
+        <div className="grid gap-2.5 sm:grid-cols-3">
+          {SUGGESTIONS.map((x) => (
+            <button key={x.label} onClick={() => actions.sendChannelMessage(cid, x.text)} className="rounded-xl border border-ai-panel-border bg-ai-panel-elevated/60 p-3.5 text-sm transition-colors hover:border-brand">
+              <x.icon className="mb-2 size-4 text-brand" />
+              <div className="font-medium">{x.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+      {brandMissing && (
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs">
+          Brand context isn't confirmed yet — agents will work with limited context. <Link to="/brand" className="font-semibold text-brand hover:underline">Set up brand →</Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MessageList({ s, cid, msgs, onOpenTask, onFollowUp }: { s: State; cid: string; msgs: Msg[]; onOpenTask: (id: string) => void; onFollowUp: () => void }) {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length]);
   const openTask = (m: Msg) => onOpenTask(m.taskId ?? MAIN_TASK_ID);
   return (
-    <div className="flex-1 space-y-5 overflow-y-auto p-5">
-      {msgs.length === 0 && (
-        <div className="mx-auto max-w-lg py-10 text-center">
-          <Sparkles className="mx-auto mb-3 size-8 text-brand" />
-          <h2 className="text-xl font-semibold">What should the team do for {s.clients.find((c) => c.id === cid)?.name}?</h2>
-          <p className="mt-1 text-sm text-ai-panel-muted">This is a shared agency channel. Mention @Clayton or a specialist — agent runs are deterministic simulations.</p>
-          {cid === "freebeat" && (
-            <button onClick={() => { actions.setPerson("sarah"); actions.sendChannelMessage(cid, MAIN_PROMPT); }} className="mt-5 w-full rounded-xl border border-ai-panel-border bg-ai-panel-elevated p-4 text-left text-sm hover:border-brand">
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-brand"><Wand2 className="size-3.5" /> Suggested · posted as Sarah</div>
-              {MAIN_PROMPT}
-            </button>
-          )}
-          {cid !== "freebeat" && (
-            <button onClick={() => actions.sendChannelMessage(cid, "Give me a quick performance review for this week")} className="mt-5 w-full rounded-xl border border-ai-panel-border bg-ai-panel-elevated p-4 text-left text-sm hover:border-brand">Give me a quick performance review for this week</button>
-          )}
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {msgs.length === 0 ? <EmptyState s={s} cid={cid} /> : (
+        <div className="mx-auto max-w-4xl space-y-1 px-4 py-6 md:px-8">
+          {msgs.map((m) => {
+            const who = WHO[m.from];
+            const isMe = m.from === personFor(s)?.id || m.from === "user";
+            const [name, role] = who.name.split(" · ");
+            const system = m.from === "system";
+            return (
+              <div key={m.id} className="group flex gap-3 rounded-xl px-2 py-2.5 hover:bg-ai-panel-elevated/30">
+                <div className={cn("grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold", who.cls, isMe && "ring-2 ring-brand/60 ring-offset-2 ring-offset-ai-panel")}>
+                  {who.ai ? <Bot className="size-4" /> : m.from === "user" ? <User className="size-4" /> : (PEOPLE.find((p) => p.id === m.from)?.initials ?? who.name[0])}
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 text-xs">
+                    <span className="font-semibold text-ai-panel-foreground">{name}{isMe && <span className="font-normal text-ai-panel-muted"> (you)</span>}</span>
+                    {role && <span className="text-ai-panel-muted">{role}</span>}
+                    {who.ai && <span className="rounded bg-brand/15 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand">AI</span>}
+                    <span className="text-[10px] text-ai-panel-muted/70">{m.at}</span>
+                    {m.taskId && <button onClick={() => openTask(m)} className="text-[11px] font-semibold text-brand hover:underline">{m.taskId}</button>}
+                  </div>
+                  <div className={cn("max-w-2xl text-sm leading-relaxed", system ? "rounded-lg border border-dashed border-ai-panel-border px-3 py-2 text-ai-panel-muted" : "text-ai-panel-foreground/95")}>
+                    <RichText text={m.text} />
+                  </div>
+                  {m.card === "progress" && <div className="max-w-2xl"><ProgressCard text={m.text} onOpenTask={() => openTask(m)} /></div>}
+                  {m.card === "analysis" && <AnalysisCard onOpenTask={() => openTask(m)} onFollowUp={onFollowUp} />}
+                  {m.card === "brief" && <BriefCard />}
+                  {m.card === "summary" && <SummaryCard onOpenTask={() => openTask(m)} />}
+                  {m.card === "stages" && <Button size="sm" variant="ai" onClick={() => openTask(m)}>Open work log in task drawer →</Button>}
+                  {m.card === "proposal" && <ProposalCard compact dark />}
+                  {m.card === "readiness" && <div className="rounded-xl border-l-4 border-danger bg-card p-3 text-card-foreground"><ReadinessPanel /></div>}
+                  {m.card === "resume" && !s.resumed && <Button variant="brand" size="sm" onClick={() => actions.resumeTask()}><Play /> Resume T-1024</Button>}
+                  {m.card === "report" && <ReportSummary />}
+                </div>
+              </div>
+            );
+          })}
+          <div ref={end} />
         </div>
       )}
-      {msgs.map((m) => {
-        const who = WHO[m.from];
-        const isMe = m.from === personFor(s)?.id || m.from === "user";
-        return (
-          <div key={m.id} className={cn("flex gap-3", isMe && "flex-row-reverse")}>
-            <div className={cn("grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold", who.cls)}>
-              {who.ai ? <Bot className="size-4" /> : m.from === "user" ? <User className="size-4" /> : (PEOPLE.find((p) => p.id === m.from)?.initials ?? who.name[0])}
-            </div>
-            <div className={cn("min-w-0 max-w-[85%] space-y-2", isMe && "text-right")}>
-              <div className="text-[11px] text-ai-panel-muted">
-                {who.name}
-                {who.ai && <span className="ml-1.5 rounded bg-ai-panel-elevated px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand">AI</span>}
-                <span className="ml-1.5">· {m.at}</span>
-                {m.taskId && <button onClick={() => openTask(m)} className="ml-1.5 font-semibold text-brand hover:underline">· {m.taskId}</button>}
-              </div>
-              <div className={cn("inline-block rounded-2xl px-4 py-2.5 text-left text-sm", m.from === "system" ? "border border-dashed border-ai-panel-border text-ai-panel-muted" : isMe ? "bg-brand text-brand-foreground" : "bg-ai-panel-elevated")}>
-                <RichText text={m.text} />
-              </div>
-              {m.card === "progress" && <ProgressCard text={m.text} onOpenTask={() => openTask(m)} />}
-              {m.card === "analysis" && <AnalysisCard onOpenTask={() => openTask(m)} onFollowUp={onFollowUp} />}
-              {m.card === "brief" && <BriefCard />}
-              {m.card === "summary" && <SummaryCard onOpenTask={() => openTask(m)} />}
-              {m.card === "stages" && <Button size="sm" variant="ai" onClick={() => openTask(m)}>Open work log in task drawer →</Button>}
-              {m.card === "proposal" && <ProposalCard compact dark />}
-              {m.card === "readiness" && <div className="rounded-xl bg-card p-3 text-card-foreground"><ReadinessPanel /></div>}
-              {m.card === "resume" && !s.resumed && <Button variant="brand" size="sm" onClick={() => actions.resumeTask()}><Play /> Resume T-1024</Button>}
-              {m.card === "report" && <ReportSummary />}
-            </div>
-          </div>
-        );
-      })}
-      <div ref={end} />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Right aside                                                         */
+/* On-demand drawers (replace the permanent right column)              */
 /* ------------------------------------------------------------------ */
-function Aside({ s, cid, onOpenTask }: { s: State; cid: string; onOpenTask: (id: string) => void }) {
+function TasksSheet({ s, cid, open, onOpenChange, onOpenTask }: { s: State; cid: string; open: boolean; onOpenChange: (o: boolean) => void; onOpenTask: (id: string) => void }) {
   const client = s.clients.find((c) => c.id === cid);
   const clientTasks = s.tasks.filter((t) => t.clientId === cid);
   return (
-    <aside className="space-y-4">
-      <div className="card-surface p-4">
-        <div className="mb-3 flex items-center justify-between text-sm font-semibold">Tasks for {client?.name} <Link to="/tasks" className="text-xs text-info">All →</Link></div>
-        {clientTasks.length === 0 ? <div className="text-sm text-muted-foreground">No tasks yet.</div> : (
-          <ul className="space-y-2">
-            {clientTasks.map((t) => { const v = taskView(s, t); return (
-              <li key={t.id} className="rounded-lg border border-border p-2.5 text-sm">
-                <div className="flex items-center justify-between gap-2"><span className="font-mono text-[11px] text-muted-foreground">{t.id}</span><TaskPill status={v.status} /></div>
-                <div className="mt-1 font-medium">{t.title}</div>
-                <div className="text-xs text-muted-foreground">{v.detail}</div>
-                <div className="mt-2 flex gap-1.5">
-                  <Button size="sm" variant="outline" onClick={() => onOpenTask(t.id)}>Open task</Button>
-                  {t.id === MAIN_TASK_ID && s.pageAccess === "connected" && !s.resumed && <Button size="sm" variant="brand" onClick={() => actions.resumeTask()}><Play /> Resume</Button>}
-                </div>
-              </li>
-            ); })}
-          </ul>
-        )}
-      </div>
-      {cid === "freebeat" && s.campaign && (
-        <>
-          <div className="card-surface p-4"><div className="mb-3 text-sm font-semibold">Account readiness</div><ReadinessPanel /></div>
-          <div className="card-surface p-4"><div className="mb-3 text-sm font-semibold">Launch</div><LaunchPanel /></div>
-        </>
-      )}
-      <div className="card-surface p-4 text-sm">
-        <div className="mb-2 font-semibold">Context</div>
-        <div className="text-muted-foreground">Brand: {s.brands[cid]?.name ?? "Not set"} ({s.brands[cid]?.status ?? "missing"})</div>
-        <div className="text-muted-foreground">Market: {s.brands[cid]?.market ?? "—"}</div>
-        <Link to="/brand" className="mt-2 inline-block text-xs font-semibold text-info">Brand & Tracking →</Link>
-      </div>
-    </aside>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Tasks · {client?.name}</SheetTitle>
+          <SheetDescription><Link to="/tasks" className="text-info">Open all tasks →</Link></SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-8">
+          {clientTasks.length === 0 ? <div className="py-6 text-center text-sm text-muted-foreground">No tasks yet. Mention @Clayton in the channel to start one.</div> : (
+            <ul className="space-y-2">
+              {clientTasks.map((t) => { const v = taskView(s, t); return (
+                <li key={t.id} className="rounded-lg border border-border p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2"><span className="font-mono text-[11px] text-muted-foreground">{t.id}</span><TaskPill status={v.status} /></div>
+                  <div className="mt-1 font-medium">{t.title}</div>
+                  <div className="text-xs text-muted-foreground">{v.detail}</div>
+                  <div className="mt-2 flex gap-1.5">
+                    <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); onOpenTask(t.id); }}>Open task</Button>
+                    {t.id === MAIN_TASK_ID && s.pageAccess === "connected" && !s.resumed && <Button size="sm" variant="brand" onClick={() => actions.resumeTask()}><Play /> Resume</Button>}
+                  </div>
+                </li>
+              ); })}
+            </ul>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Direct-customer 1:1 (unchanged concept)                             */
-/* ------------------------------------------------------------------ */
-function DirectChat({ s }: { s: State }) {
-  const msgs = s.messages.filter((m) => m.clientId === "direct");
-  const [drawer, setDrawer] = useState<string | null>(null);
+function ContextSheet({ s, cid, open, onOpenChange }: { s: State; cid: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const brand = s.brands[cid];
   return (
-    <div className="mx-auto grid max-w-[1200px] gap-5 xl:grid-cols-[1fr_360px]">
-      <div className="ai-surface flex min-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl">
-        <div className="border-b border-ai-panel-border px-5 py-3.5">
-          <div className="text-[11px] uppercase tracking-wider text-ai-panel-muted">Private 1:1 · not a shared channel</div>
-          <div className="font-display text-lg font-semibold">Ask AI AM</div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Context · {s.clients.find((c) => c.id === cid)?.name}</SheetTitle>
+          <SheetDescription>Brand, account readiness and campaign status the agents use.</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 px-4 pb-8 text-sm">
+          <div className="rounded-xl border border-border p-4">
+            <div className="mb-2 font-semibold">Brand context</div>
+            {brand ? (
+              <>
+                <div className="text-muted-foreground">Brand: {brand.name} ({brand.status})</div>
+                <div className="text-muted-foreground">Market: {brand.market ?? "—"}</div>
+              </>
+            ) : <div className="text-muted-foreground">No brand set up yet.</div>}
+            <Link to="/brand" className="mt-2 inline-block text-xs font-semibold text-info">Brand & Tracking →</Link>
+          </div>
+          {cid === "freebeat" && s.campaign ? (
+            <>
+              <div className="rounded-xl border border-border p-4"><div className="mb-3 font-semibold">Account readiness</div><ReadinessPanel /></div>
+              <div className="rounded-xl border border-border p-4"><div className="mb-3 font-semibold">Launch</div><LaunchPanel /></div>
+              <Button size="sm" variant="outline" asChild><Link to="/campaigns">Open Campaign →</Link></Button>
+            </>
+          ) : <div className="text-xs text-muted-foreground">Account readiness and launch status appear once a campaign proposal exists.</div>}
         </div>
-        <MessageList s={s} cid="direct" msgs={msgs} onOpenTask={setDrawer} onFollowUp={() => {}} />
-        <ComposerWithPrefill s={s} cid="direct" initial="" />
-      </div>
-      <Aside s={s} cid="direct" onOpenTask={setDrawer} />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+const hdrBtn = "text-ai-panel-muted hover:bg-ai-panel-elevated hover:text-ai-panel-foreground";
+
+function OverflowMenu() {
+  const u = useShellUtils();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className={hdrBtn} aria-label="More"><MoreHorizontal /></Button></DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Prototype previews</DropdownMenuLabel>
+        <DropdownMenuItem onClick={u.openSlack}><Slack /> Slack preview</DropdownMenuItem>
+        <DropdownMenuItem onClick={u.openMobile}><Smartphone /> Mobile preview</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={u.openScenario}>Current scenario</DropdownMenuItem>
+        <DropdownMenuItem onClick={u.openChecks}>Acceptance checks</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild><Link to="/tasks"><ListChecks /> All tasks</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link to="/analytics"><BarChart3 /> Analytics</Link></DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Immersive, chat-first frame shared by the agency channel and the direct 1:1 chat. */
+function ImmersiveFrame({ s, cid, title, extra }: { s: State; cid: string; title: React.ReactNode; extra?: React.ReactNode }) {
+  const [drawer, setDrawer] = useState<string | null>(null);
+  const [tasksOpen, setTasksOpen] = useState(false);
+  const [ctxOpen, setCtxOpen] = useState(false);
+  const followUpRef = useRef<() => void>(() => {});
+  const u = useShellUtils();
+  const msgs = s.messages.filter((m) => m.clientId === cid);
+  const taskCount = s.tasks.filter((t) => t.clientId === cid).length;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col bg-ai-panel text-ai-panel-foreground">
+      <header className="flex h-14 shrink-0 items-center gap-1.5 border-b border-ai-panel-border px-2 md:px-4">
+        <MobileNav className="border-ai-panel-border bg-transparent text-ai-panel-foreground hover:bg-ai-panel-elevated" />
+        {title}
+        <div className="ml-auto flex items-center gap-0.5">
+          {extra}
+          <Button size="sm" variant="ghost" className={hdrBtn} onClick={() => setTasksOpen(true)} title="Tasks"><ListChecks /> <span className="hidden md:inline">Tasks</span>{taskCount > 0 && <span className="rounded-full bg-brand px-1.5 text-[10px] font-bold text-brand-foreground">{taskCount}</span>}</Button>
+          <Button size="sm" variant="ghost" className={hdrBtn} onClick={() => setCtxOpen(true)} title="Context"><Layers /> <span className="hidden md:inline">Context</span></Button>
+          <Notifications className={hdrBtn} />
+          <DemoControls compact onChecks={u.openChecks} onScenario={u.openScenario} />
+          <OverflowMenu />
+        </div>
+      </header>
+      <MessageList s={s} cid={cid} msgs={msgs} onOpenTask={setDrawer} onFollowUp={() => followUpRef.current()} />
+      <ComposerBridge s={s} cid={cid} followUpRef={followUpRef} />
+      <TasksSheet s={s} cid={cid} open={tasksOpen} onOpenChange={setTasksOpen} onOpenTask={setDrawer} />
+      <ContextSheet s={s} cid={cid} open={ctxOpen} onOpenChange={setCtxOpen} />
       <TaskDrawer taskId={drawer} onClose={() => setDrawer(null)} />
     </div>
   );
@@ -523,49 +624,37 @@ function DirectChat({ s }: { s: State }) {
 /* ------------------------------------------------------------------ */
 function Workspace() {
   const s = useDemo();
-  const [drawer, setDrawer] = useState<string | null>(null);
   const cid = s.biz === "direct" ? "direct" : s.clientId;
-  const client = s.clients.find((c) => c.id === cid);
-  const msgs = s.messages.filter((m) => m.clientId === cid);
-  const followUpRef = useRef<() => void>(() => {});
 
-  if (s.biz === "direct") return <DirectChat s={s} />;
+  if (s.biz === "direct") {
+    return (
+      <ImmersiveFrame s={s} cid="direct" title={
+        <div className="min-w-0 px-2">
+          <div className="font-display text-base font-semibold">Ask AI AM</div>
+          <div className="text-[11px] text-ai-panel-muted">Private 1:1 · not a shared channel</div>
+        </div>
+      } />
+    );
+  }
   if (cid === "all") {
     return (
-      <div className="mx-auto max-w-lg py-16">
-        <Empty title="Pick a client channel to open its shared workspace">
-          <div className="mt-3 flex justify-center gap-2">
-            {s.clients.filter((c) => c.biz === "bluefocus").map((c) => <Button key={c.id} size="sm" variant="outline" onClick={() => actions.setClient(c.id)}># {channelName(s, c.id)}</Button>)}
-          </div>
-        </Empty>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-ai-panel p-6 text-center text-ai-panel-foreground">
+        <Hash className="size-8 text-brand" />
+        <h2 className="font-display text-xl font-semibold">Pick a client channel to open its shared workspace</h2>
+        <div className="flex flex-wrap justify-center gap-2">
+          {s.clients.filter((c) => c.biz === "bluefocus").map((c) => <Button key={c.id} size="sm" variant="ai" onClick={() => actions.setClient(c.id)}># {channelName(s, c.id)}</Button>)}
+        </div>
       </div>
     );
   }
-
   return (
-    <div className="mx-auto flex max-w-[1500px] gap-5">
-      <ChannelRail s={s} cid={cid} />
-      <div className="grid min-w-0 flex-1 gap-5 xl:grid-cols-[1fr_340px]">
-        <div className="ai-surface flex min-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl">
-          <div className="flex flex-wrap items-center gap-3 border-b border-ai-panel-border px-5 py-3.5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 font-display text-lg font-semibold"><Hash className="size-4 text-brand" /> {channelName(s, cid)}</div>
-              <div className="text-[11px] text-ai-panel-muted">Internal agency workspace · BlueFocus / {client?.name} <Lock className="ml-1 inline size-3" /> Not visible to the end client</div>
-            </div>
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <AvatarStack />
-              <MembersPopover />
-              <PersonSwitcher s={s} />
-            </div>
-          </div>
-          <GuidedDemo s={s} cid={cid} />
-          <MessageList s={s} cid={cid} msgs={msgs} onOpenTask={setDrawer} onFollowUp={() => followUpRef.current()} />
-          <ComposerBridge s={s} cid={cid} followUpRef={followUpRef} />
-        </div>
-        <Aside s={s} cid={cid} onOpenTask={setDrawer} />
-      </div>
-      <TaskDrawer taskId={drawer} onClose={() => setDrawer(null)} />
-    </div>
+    <ImmersiveFrame s={s} cid={cid} title={<ChannelSwitcher s={s} cid={cid} />} extra={
+      <>
+        <GuidedDemo s={s} cid={cid} />
+        <div className="hidden sm:block"><MembersPopover /></div>
+        <PersonSwitcher s={s} />
+      </>
+    } />
   );
 }
 
@@ -607,9 +696,9 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
   const options = mentionQ != null ? MENTIONABLES.filter((m) => m.label.toLowerCase().includes(mentionQ.toLowerCase())) : [];
 
   return (
-    <div className="relative border-t border-ai-panel-border p-3">
+    <div className="relative mx-auto w-full max-w-4xl shrink-0 px-4 pb-4 pt-2 md:px-8">
       {options.length > 0 && (
-        <div className="absolute bottom-full left-3 mb-1 w-64 overflow-hidden rounded-xl border border-ai-panel-border bg-card text-card-foreground shadow-xl">
+        <div className="absolute bottom-full left-4 mb-1 w-64 md:left-8 overflow-hidden rounded-xl border border-ai-panel-border bg-card text-card-foreground shadow-xl">
           <div className="border-b border-border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mention</div>
           {options.map((o) => (
             <button key={o.id} onClick={() => insertMention(o.label)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted">
@@ -620,7 +709,7 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
           ))}
         </div>
       )}
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
+      <form className="flex items-end gap-2 rounded-2xl border border-ai-panel-border bg-ai-panel-elevated p-2 focus-within:border-brand/60" onSubmit={(e) => { e.preventDefault(); send(); }}>
         <Textarea
           ref={taRef}
           rows={1}
@@ -628,7 +717,7 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
           onChange={(e) => onChange(e.target.value)}
           placeholder={disabled ? "Ops can view; messaging as agency user disabled" : `Message #${channelName(s, cid)} — type @ to mention`}
           disabled={disabled}
-          className="min-h-10 resize-none border-ai-panel-border bg-ai-panel-elevated text-ai-panel-foreground placeholder:text-ai-panel-muted"
+          className="min-h-10 resize-none border-0 bg-transparent text-ai-panel-foreground shadow-none placeholder:text-ai-panel-muted focus-visible:ring-0"
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } if (e.key === "Escape") setMentionQ(null); }}
         />
         <Button type="submit" variant="brand" disabled={disabled}><Send /></Button>
