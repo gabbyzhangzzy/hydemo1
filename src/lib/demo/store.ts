@@ -1204,6 +1204,11 @@ export const actions = {
       if (s.clientId !== clientId) s.clientId = clientId;
     });
   },
+  consumePendingPrompt() {
+    update((s) => {
+      s.pendingPrompt = null;
+    });
+  },
   addFunds(amount: number) {
     update((s) => {
       if (!can.fund(s.role) || !(amount > 0)) return;

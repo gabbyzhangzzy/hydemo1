@@ -667,7 +667,12 @@ function ComposerBridge({ s, cid, followUpRef }: { s: State; cid: string; follow
 }
 
 function ComposerInner({ s, cid, prefill }: { s: State; cid: string; prefill: boolean }) {
-  return <ComposerWithPrefill s={s} cid={cid} initial={prefill ? "@UA Agent " : ""} />;
+  // Consume a pending prompt set elsewhere (e.g. Campaigns → "Plan with Clayton").
+  const pending = s.pendingPrompt;
+  useEffect(() => {
+    if (pending) actions.consumePendingPrompt();
+  }, [pending]);
+  return <ComposerWithPrefill key={pending ?? "default"} s={s} cid={cid} initial={pending ?? (prefill ? "@UA Agent " : "")} />;
 }
 
 function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initial: string }) {
