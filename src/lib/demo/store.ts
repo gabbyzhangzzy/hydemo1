@@ -986,6 +986,7 @@ export const actions = {
     update((s) => {
       if (s.campaign || !can.editDraft(s.role)) return;
       s.campaign = { id: "CMP-FB-US-01", clientId: "freebeat", name: "Freebeat — US Awareness Campaign", platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 200, totalCap: 2000, audience: "US · 18–34 · Interests: music creation, TikTok/Reels creators", placements: ["Instagram Reels", "Facebook Feed", "Instagram Stories"], assets: 3, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "UA Agent", change: "Initial proposal" }] };
+      logActivity(s, { campaignId: "CMP-FB-US-01", actor: "UA Agent", kind: "Agent", action: "Proposal generated from campaign review", outcome: "Revision 1 · draft created", simulated: true });
       say(s, "ua", "Campaign draft CMP-FB-US-01 created from the review: Spring Launch showed Reels CPM 18% below Feed, so I weighted Reels first. Proposal Revision 1 is ready.", "proposal", "freebeat", { taskId: MAIN_TASK_ID });
       if (s.pageAccess !== "connected") {
         check(s, "c6");
@@ -1213,6 +1214,7 @@ export const actions = {
         s.launch.inFlight = false;
         if (s.campaign && s.campaign.status === "approved") {
           s.campaign.status = "submitted";
+          logActivity(s, { campaignId: s.campaign.id, actor: actorName(s), kind: "System", action: `Launch submitted (request ${s.launch.requestId})`, outcome: "Submitted to Hellyeah Ops", simulated: true });
           notify(s, "Launch submitted to Hellyeah Ops (simulated).", "/campaigns");
         }
       });
@@ -1242,6 +1244,7 @@ export const actions = {
       }
       s.launch.error = null;
       c.status = next;
+      logActivity(s, { campaignId: c.id, actor: "System", kind: "System", action: `Status → ${STATUS_LABEL[next]}`, outcome: next === "provider_accepted" ? `Provider ID ${s.launch.providerId}` : next === "live_verified" ? `First spend confirmed: $${s.launch.firstSpend}` : undefined, simulated: true });
       if (next === "live_verified") {
         check(s, "c14");
         s.report = { status: "draft", external: DEFAULT_EXTERNAL };
