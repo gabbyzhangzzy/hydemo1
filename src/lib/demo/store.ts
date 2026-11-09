@@ -294,6 +294,33 @@ export const CREATIVES = [
   { id: "D-01", clientId: "direct", name: "Morning brew hero", kind: "Image · 1:1", status: "Approved" },
 ];
 
+/** Illustrative extra proposals so the Campaigns hub shows every workflow state. Same Campaign model as the main proposal. */
+export function seedDrafts(): Campaign[] {
+  return [
+    {
+      id: "CMP-FB-TTSPARK", clientId: "freebeat", name: "Freebeat — TikTok Spark Push", platform: "TikTok Ads", objective: "Traffic", geo: "United States",
+      dailyBudget: 150, totalCap: 1500, audience: "US · 18–30 · Music & creator interests", placements: ["TikTok Feed"], assets: 1,
+      revision: 2, status: "awaiting_approval", approvedRevision: null,
+      revisions: [
+        { rev: 1, by: "UA Agent", change: "Initial proposal from TikTok Viral Hooks learnings" },
+        { rev: 2, by: "Alex Rivera", change: "Daily budget $120 → $150 after pacing review" },
+      ],
+    },
+    {
+      id: "CMP-FB-HOLIDAY", clientId: "freebeat", name: "Freebeat — Holiday Retargeting", platform: "Meta", objective: "Conversions", geo: "US · UK",
+      dailyBudget: 90, totalCap: 900, audience: "Site visitors 30d · App installers", placements: ["Facebook Feed", "Instagram Stories"], assets: 0,
+      revision: 1, status: "draft", approvedRevision: null,
+      revisions: [{ rev: 1, by: "Sarah Linden", change: "Manual draft — waiting on holiday creative" }],
+    },
+    {
+      id: "CMP-B-UGC", clientId: "clientb", name: "Client B — UGC Creator Test", platform: "Meta", objective: "Conversions", geo: "United States",
+      dailyBudget: 75, totalCap: 750, audience: "US · 25–44 · Skincare interests", placements: ["Instagram Reels"], assets: 1,
+      revision: 1, status: "draft", approvedRevision: null,
+      revisions: [{ rev: 1, by: "Sarah Linden", change: "Manual draft" }],
+    },
+  ];
+}
+
 export const MAIN_TASK_ID = "T-1024";
 export const MAIN_PROMPT =
   "@Clayton, can you review Freebeat's Meta performance over the last seven days and prepare recommendations for our next creative batch?";
