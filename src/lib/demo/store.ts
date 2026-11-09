@@ -455,6 +455,9 @@ export function hydrateDemo() {
         state.creativeAssets ??= seedCreatives();
         state.creativeUsage ??= seedUsage();
         state.creativePolicy ??= { enabled: false, version: 1, enabledBy: null };
+        state.drafts ??= seedDrafts();
+        state.activity ??= [];
+        state.pendingPrompt ??= null;
         emit();
       }
     }
