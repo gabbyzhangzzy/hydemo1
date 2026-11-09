@@ -1095,53 +1095,91 @@ export const actions = {
   },
 
   /* ---------------- Campaign / approval / launch ---------------- */
-  editCampaign(patch: Partial<Pick<Campaign, "dailyBudget" | "totalCap" | "audience" | "placements">>, change: string) {
+  editCampaign(patch: Partial<Pick<Campaign, "dailyBudget" | "totalCap" | "audience" | "placements">>, change: string, campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || !can.editDraft(s.role)) return;
       if (STATUS_FLOW.indexOf(c.status) >= STATUS_FLOW.indexOf("submitted")) return;
       const hadApproval = c.status === "approved" || c.status === "awaiting_approval";
       Object.assign(c, patch);
       c.revision += 1;
       c.revisions.push({ rev: c.revision, by: actorName(s), change });
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Revision ${c.revision} — ${change}`, outcome: hadApproval ? "Prior approval invalidated" : "Draft updated" });
       if (hadApproval) {
         c.status = "draft";
         c.approvedRevision = null;
         check(s, "c12");
         notify(s, `Proposal edited to Revision ${c.revision}. Previous approval invalidated.`, "/campaigns");
       }
-      say(s, "system", `Proposal updated to Revision ${c.revision}: ${change}${hadApproval ? " — prior approval invalidated." : ""}`);
+      say(s, "system", `Proposal updated to Revision ${c.revision}: ${change}${hadApproval ? " — prior approval invalidated." : ""}`, undefined, c.clientId);
     });
   },
-  submitForApproval() {
+  submitForApproval(campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || c.status !== "draft" || !can.editDraft(s.role)) return;
       c.status = "awaiting_approval";
       c.changesRequested = undefined;
       if (s.role === "member") check(s, "c4");
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Approval requested for Revision ${c.revision}`, outcome: "Pending Admin review" });
       notify(s, `Approval requested for Revision ${c.revision} by ${actorName(s)}.`, "/campaigns");
-      say(s, "system", `Revision ${c.revision} submitted for Admin approval.`);
+      say(s, "system", `Revision ${c.revision} submitted for Admin approval.`, undefined, c.clientId);
     });
   },
-  approve() {
+  approve(campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || c.status !== "awaiting_approval" || !can.approve(s.role)) return;
       c.status = "approved";
       c.approvedRevision = c.revision;
       if (s.wallet.activity.some((a) => a.amount > 0)) check(s, "c5");
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Revision ${c.revision} approved`, outcome: "Approval granted for this exact revision" });
       notify(s, `Revision ${c.revision} approved by ${actorName(s)}.`, "/campaigns");
-      say(s, "system", `Admin approved Revision ${c.revision}. Campaign proposal is ready for launch once readiness checks pass.`);
+      say(s, "system", `Admin approved Revision ${c.revision}. Campaign proposal is ready for launch once readiness checks pass.`, undefined, c.clientId);
     });
   },
-  requestChanges(note: string) {
+  requestChanges(note: string, campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || c.status !== "awaiting_approval" || !can.approve(s.role)) return;
       c.status = "draft";
       c.changesRequested = note || "Changes requested";
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Changes requested on Revision ${c.revision}`, outcome: c.changesRequested });
       notify(s, `Changes requested on Revision ${c.revision}: ${c.changesRequested}`, "/campaigns");
+    });
+  },
+  /** Create a manual campaign draft — same Campaign model as AI-created proposals. */
+  createManualCampaign(fields: { clientId: string; name: string; platform: string; objective: string; geo: string; dailyBudget: number; totalCap: number; audience: string; placements: string[]; creativeIds: string[] }) {
+    const cid = `CMP-M-${state.seq + 1}`;
+    update((s) => {
+      if (!can.editDraft(s.role) || !fields.name.trim() || !(fields.dailyBudget > 0) || fields.totalCap < fields.dailyBudget) return;
+      const c: Campaign = {
+        id: id(s, "CMP-M"), clientId: fields.clientId, name: fields.name.trim(), platform: fields.platform, objective: fields.objective,
+        geo: fields.geo, dailyBudget: fields.dailyBudget, totalCap: fields.totalCap, audience: fields.audience,
+        placements: fields.placements, assets: fields.creativeIds.length, revision: 1, status: "draft", approvedRevision: null,
+        revisions: [{ rev: 1, by: actorName(s), change: "Manual draft created" }],
+      };
+      s.drafts.unshift(c);
+      for (const key of fields.creativeIds) {
+        const [aid, vn] = key.split("@");
+        const a = s.creativeAssets.find((x) => x.id === aid);
+        const v = a?.versions.find((x) => x.number === Number(vn));
+        if (!a || !v || a.clientId !== fields.clientId || !effectiveApproval(a, v)) continue;
+        if (!s.creativeUsage.some((u) => u.creativeId === a.id && u.version === v.number && u.campaignId === c.id)) {
+          s.creativeUsage.push({ creativeId: a.id, version: v.number, campaignId: c.id });
+        }
+      }
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: "Campaign draft created manually", outcome: `Revision 1 · ${fields.platform} · $${fields.dailyBudget}/day` });
+      notify(s, `Draft “${c.name}” created — it now appears in Campaigns.`, "/campaigns");
+    });
+    return cid;
+  },
+  /** New Campaign → Plan with Clayton: prefill the workspace composer for the current client. */
+  planWithClayton(clientId: string) {
+    update((s) => {
+      const name = s.clients.find((c) => c.id === clientId)?.name ?? "the client";
+      s.pendingPrompt = `@Clayton Help me plan a new campaign for ${name}.`;
+      if (s.clientId !== clientId) s.clientId = clientId;
     });
   },
   addFunds(amount: number) {
