@@ -57,6 +57,19 @@ function Portal() {
             <p className="mt-3 rounded-lg bg-muted p-3 text-sm">{s.report.external}</p>
           </div>
         ) : <Empty title="No published reports yet" />}
+        {s.perfReports.filter((r) => r.clientId === "freebeat" && r.status === "published").map((r) => (
+          <div key={r.id} className="mt-4 rounded-xl border border-border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><span className="font-mono text-[11px] text-muted-foreground">{r.id}</span> <span className="text-sm font-semibold">{r.title}</span></div>
+              <Pill tone="success">Published</Pill>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+              {r.metrics.map((m2) => <div key={m2.label}><div className="text-xs text-muted-foreground">{m2.label}</div><div className="font-semibold">{m2.value}</div></div>)}
+            </div>
+            <p className="mt-3 rounded-lg bg-muted p-3 text-sm">{r.narrative}</p>
+            {r.charts.length > 0 && <div className="mt-2 text-xs text-muted-foreground">Included charts: {r.charts.join(" · ")}</div>}
+          </div>
+        ))}
       </Section>
 
       <Section title="Approved creatives">

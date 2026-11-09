@@ -124,6 +124,22 @@ export interface Notif {
   read: boolean;
 }
 
+/** Agency performance report built from the Analytics dashboard. */
+export interface PerfReport {
+  id: string;
+  clientId: string;
+  title: string;
+  rangeLabel: string;
+  narrative: string;
+  charts: string[];
+  comment: string;
+  metrics: { label: string; value: string }[];
+  insights: string[];
+  status: "draft" | "ready" | "published";
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface State {
   version: number;
   accessPath: AccessPath;
@@ -163,6 +179,7 @@ export interface State {
   };
   cases: Case[];
   report: { status: "none" | "draft" | "ready" | "published"; external: string };
+  perfReports: PerfReport[];
   messages: Msg[];
   notifications: Notif[];
   checks: string[];
@@ -288,7 +305,7 @@ const GENERIC_STAGES = (label: string, agent: string): LogEntry[] => [
 function baseState(accessPath: AccessPath): State {
   const bd = accessPath === "bd";
   return {
-    version: 4,
+    version: 5,
     accessPath,
     role: "admin",
     biz: "bluefocus",
@@ -330,6 +347,7 @@ function baseState(accessPath: AccessPath): State {
       { id: "CASE-2038", clientId: "clientb", type: "Account Opening", owner: "Anita", taskId: "T-0997", status: "In Progress", updated: "Mon 12:05", diagnostics: ["New TikTok ad account requested", "Business verification document pending", "No credentials stored in case"], notes: ["Requested business registration from agency AM."] },
     ],
     report: { status: "none", external: "" },
+    perfReports: [],
     messages: [
       { id: "M-1", clientId: "clientb", from: "sarah", text: "@Clayton, is the weekly search review for Demo Client B ready?", at: "Mon 09:05", mentions: ["clayton"] },
       { id: "M-2", clientId: "clientb", from: "clayton", text: "Yes — UA finished the weekly review: CPC is down 6% WoW (demo data), no action needed. The full summary is on the Tasks page under T-0991.", at: "Mon 09:12", taskId: "T-0991" },
@@ -1049,6 +1067,26 @@ export const actions = {
       if (patch.status === "published") {
         check(s, "c15");
         notify(s, "Daily Performance Update published to the Freebeat Client Portal.", "/portal");
+      }
+    });
+  },
+  /* ---------------- Analytics performance reports ---------------- */
+  createPerfReport(r: Omit<PerfReport, "id" | "status" | "createdBy" | "createdAt">) {
+    const rid = `RPT-${state.seq + 1}`;
+    update((s) => {
+      s.perfReports.unshift({ ...r, id: id(s, "RPT"), status: "draft", createdBy: actorName(s), createdAt: now() });
+      notify(s, `Performance report ${rid} created as an internal draft.`, "/analytics");
+    });
+    return rid;
+  },
+  updatePerfReport(rid: string, patch: Partial<Pick<PerfReport, "narrative" | "charts" | "comment" | "status">>) {
+    update((s) => {
+      const r = s.perfReports.find((x) => x.id === rid);
+      if (!r) return;
+      Object.assign(r, patch);
+      if (patch.status === "published") {
+        check(s, "c15");
+        notify(s, `${rid} published to the ${s.clients.find((c) => c.id === r.clientId)?.name ?? "client"} Client Portal.`, "/portal");
       }
     });
   },
