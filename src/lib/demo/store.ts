@@ -889,7 +889,9 @@ export const actions = {
       const aiMentioned: string[] = mentions.filter((m) => m === "clayton" || m === "ua" || m === "creative");
       const humansMentioned: string[] = mentions.filter((m) => !aiMentioned.includes(m));
 
-      if (cid === "freebeat" && mentions.includes("clayton") && !collabTask(s)) {
+      // Guided scenario hijacks the first generic @Clayton message — but an explicit
+      // "plan a new campaign" request goes to the proposal-drafting branch instead.
+      if (cid === "freebeat" && mentions.includes("clayton") && !collabTask(s) && !/plan a new campaign|new campaign/i.test(trimmed)) {
         collabStart(s, p?.id ?? "sarah", trimmed);
         return;
       }
