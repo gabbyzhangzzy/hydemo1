@@ -20,9 +20,9 @@ export function statusTone(s: CampaignStatus) {
   return "info" as const;
 }
 
-export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: boolean }) {
+export function ProposalCard({ compact, dark, campaignId }: { compact?: boolean; dark?: boolean; campaignId?: string }) {
   const s = useDemo();
-  const c = s.campaign;
+  const c = campaignId ? (s.campaign?.id === campaignId ? s.campaign : s.drafts.find((d) => d.id === campaignId)) : s.campaign;
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [audOpen, setAudOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
@@ -89,7 +89,7 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
           <ShieldCheck /> {showReady ? "Hide readiness" : "Check readiness"}
         </Button>
         {c.status === "draft" && (
-          <Button size="sm" variant="brand" disabled={!can.editDraft(s.role)} onClick={() => actions.submitForApproval()}>
+          <Button size="sm" variant="brand" disabled={!can.editDraft(s.role)} onClick={() => actions.submitForApproval(c.id)}>
             <Send /> Submit for approval
           </Button>
         )}
@@ -102,11 +102,11 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
             <div className="space-y-2">
               <div className="text-xs font-semibold">Admin review — you are approving exactly Revision {c.revision} ({money(c.dailyBudget)}/day, cap {money(c.totalCap)}, account act_DEMO_88231)</div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => actions.approve()}>
+                <Button size="sm" onClick={() => actions.approve(c.id)}>
                   <Check /> Approve Rev {c.revision}
                 </Button>
                 <Input className="h-8 max-w-xs text-xs" placeholder="Change request note" value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} />
-                <Button size="sm" variant="outline" onClick={() => { actions.requestChanges(rejectNote); setRejectNote(""); }}>
+                <Button size="sm" variant="outline" onClick={() => { actions.requestChanges(rejectNote, c.id); setRejectNote(""); }}>
                   <X /> Request changes
                 </Button>
               </div>
@@ -137,7 +137,7 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
               onClick={() => {
                 const d = Number(daily), t = Number(cap);
                 if (!(d > 0) || !(t >= d)) { toast.error("Daily budget must be > 0 and cap ≥ daily."); return; }
-                actions.editCampaign({ dailyBudget: d, totalCap: t }, `Budget ${money(d)}/day, cap ${money(t)}`);
+                actions.editCampaign({ dailyBudget: d, totalCap: t }, `Budget ${money(d)}/day, cap ${money(t)}`, c.id);
                 setBudgetOpen(false);
               }}
             >
@@ -157,7 +157,7 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
           <div className="text-xs text-muted-foreground">Placements: {c.placements.join(", ")}</div>
           <DialogFooter>
             {editable ? (
-              <Button onClick={() => { if (aud !== c.audience) actions.editCampaign({ audience: aud }, "Audience updated"); setAudOpen(false); }}>Save</Button>
+              <Button onClick={() => { if (aud !== c.audience) actions.editCampaign({ audience: aud }, "Audience updated", c.id); setAudOpen(false); }}>Save</Button>
             ) : (
               <Button variant="outline" onClick={() => setAudOpen(false)}>Close</Button>
             )}
