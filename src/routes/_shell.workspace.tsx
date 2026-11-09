@@ -69,7 +69,7 @@ function Workspace() {
   const msgs = s.messages.filter((m) => m.clientId === cid);
   const main = s.tasks.find((t) => t.id === MAIN_TASK_ID);
   const clientTasks = s.tasks.filter((t) => t.clientId === cid);
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [msgs.length]);
+  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length]);
 
   if (cid === "all") {
     return (

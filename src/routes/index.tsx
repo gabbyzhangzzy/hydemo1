@@ -26,7 +26,7 @@ const GOALS = [
 
 function Onboarding() {
   const s = useDemo();
-  useEffect(() => hydrateDemo(), []);
+  useEffect(() => { hydrateDemo(); }, []);
   return (
     <div className="min-h-screen bg-background">
       <header className="flex items-center gap-3 border-b border-border px-6 py-4">
