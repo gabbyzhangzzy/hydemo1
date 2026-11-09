@@ -56,7 +56,7 @@ export interface Task {
   stages: LogEntry[];
   campaignId?: string;
   caseId?: string;
-  result?: string;
+  result?: string | undefined;
   createdAt: string;
 }
 export interface Revision {
@@ -79,7 +79,7 @@ export interface Campaign {
   revision: number;
   status: CampaignStatus;
   approvedRevision: number | null;
-  changesRequested?: string;
+  changesRequested?: string | undefined;
   revisions: Revision[];
 }
 export interface Case {
@@ -99,7 +99,7 @@ export interface Msg {
   clientId: string;
   from: "user" | "clayton" | "ua" | "creative" | "system" | "aiam";
   text: string;
-  card?: "stages" | "proposal" | "readiness" | "report" | "resume";
+  card?: undefined | "stages" | "proposal" | "readiness" | "report" | "resume";
 }
 export interface Notif {
   id: string;
@@ -117,9 +117,9 @@ export interface State {
   onboarded: boolean;
   onboarding: {
     step: number;
-    goal?: string;
+    goal?: string | undefined;
     freeText: string;
-    customerType?: "own" | "agency";
+    customerType?: "own" | "agency" | undefined;
     company: string;
     clientName: string;
     url: string;
@@ -363,7 +363,7 @@ export function brandFor(s: State, clientId: string): Brand | undefined {
 }
 
 export function readiness(s: State) {
-  const brand = s.brands.freebeat;
+  const brand = s.brands["freebeat"];
   const daily = s.campaign?.dailyBudget ?? 200;
   return [
     { key: "brand", label: "Brand Profile", ok: brand?.status === "confirmed", value: brand ? (brand.status === "confirmed" ? "Confirmed" : "Draft — needs confirmation") : "Missing" },
@@ -695,7 +695,7 @@ export const actions = {
       if (!c) return;
       const i = STATUS_FLOW.indexOf(c.status);
       if (i < STATUS_FLOW.indexOf("submitted") || c.status === "live_verified") return;
-      const next = STATUS_FLOW[i + 1];
+      const next = STATUS_FLOW[i + 1]!;
       if (next === "provider_accepted") {
         if (s.launch.failNext) {
           s.launch.failNext = false;

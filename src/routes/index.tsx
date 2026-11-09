@@ -218,7 +218,7 @@ function SelfServe() {
 function BdReview() {
   const s = useDemo();
   const nav = useNavigate();
-  const brand = s.brands.freebeat;
+  const brand = s.brands["freebeat"];
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <Pill tone="info">Invitation from Hellyeah BD · Andy & team</Pill>

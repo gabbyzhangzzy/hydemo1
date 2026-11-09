@@ -244,7 +244,7 @@ export function LaunchPanel() {
   if (!can.launch(s.role)) reasons.push("Only a BlueFocus Admin can finalize launch");
   const canClick = approvedCurrent && ready && can.launch(s.role);
   const simulate = idx >= 3 && c.status !== "live_verified" && (s.role === "ops" || s.role === "admin");
-  const next = STATUS_FLOW[idx + 1];
+  const next = STATUS_FLOW[idx + 1] ?? "live_verified";
   return (
     <div className="space-y-4">
       <ol className="grid grid-cols-4 gap-2 md:grid-cols-8">
