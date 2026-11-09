@@ -721,7 +721,7 @@ export const actions = {
   },
   generateCreative(clientId:string,name:string,prompt:string) {
     const aid=`GEN-${state.seq+1}`;
-    update(s=>{if(!can.editDraft(s.role))return;const v=makeVersion(CREATIVE_PREVIEWS[6]??"",1);v.by="Creative Agent";v.createdAt=new Date().toISOString();const tid=id(s,"T");s.creativeAssets.unshift({id:aid,clientId,name,source:"AI Generated",channel:"Meta",tags:["Concept"],current:1,reviewer:s.person,clientRequired:false,versions:[v],pendingTask:tid});s.tasks.unshift({id:tid,clientId,title:`Generate ${name} (simulated)`,agent:"Creative Agent",status:"running",stage:0,stages:GENERIC_STAGES(prompt,"Creative Agent"),createdAt:now(),creativeId:aid,creativeVersion:1,creativeKind:"generation",creativeReason:prompt});notify(s,`Generation task ${tid} started`,"/creative");});return aid;
+    update(s=>{if(!can.editDraft(s.role))return;const v=makeVersion(CREATIVE_PREVIEWS[clientId==="clientb"?12:clientId==="direct"?14:6]??"",1);v.by="Creative Agent";v.createdAt=new Date().toISOString();const tid=id(s,"T");s.creativeAssets.unshift({id:aid,clientId,name,source:"AI Generated",channel:"Meta",tags:["Concept"],current:1,reviewer:s.person,clientRequired:false,versions:[v],pendingTask:tid});s.tasks.unshift({id:tid,clientId,title:`Generate ${name} (simulated)`,agent:"Creative Agent",status:"running",stage:0,stages:GENERIC_STAGES(prompt,"Creative Agent"),createdAt:now(),creativeId:aid,creativeVersion:1,creativeKind:"generation",creativeReason:prompt});notify(s,`Generation task ${tid} started`,"/creative");});return aid;
   },
   reset(path?: AccessPath) {
     update((s) => {
