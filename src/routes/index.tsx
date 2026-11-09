@@ -1,266 +1,390 @@
-import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, BarChart3, Bot, Briefcase, Check, Headset, Loader2, Rocket, Search, Send, Sparkles, Users } from "lucide-react";
-import { toast } from "sonner";
+import {
+  ArrowRight,
+  BarChart3,
+  Bot,
+  Check,
+  ClipboardList,
+  Eye,
+  FolderKanban,
+  Lock,
+  Megaphone,
+  MessageSquareText,
+  Palette,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Users,
+  Workflow,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { BrandCard } from "@/components/demo/brand-card";
-import { Pill } from "@/components/demo/bits";
-import { actions, FREEBEAT_BRAND, hydrateDemo, useDemo, type Brand } from "@/lib/demo/store";
+import { actions } from "@/lib/demo/store";
 import { pageHead } from "@/lib/demo/head";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
-  head: () => pageHead("Welcome & Onboarding", "Tell Hellyeah what you want to achieve and get your AI growth team set up in minutes."),
-  component: Onboarding,
+  head: () =>
+    pageHead(
+      "Hellyeah AI — Your AI growth team, working alongside yours",
+      "Bring your people, campaigns, creatives and AI teammates into one workspace. Plan campaigns, coordinate execution, track results and keep work moving.",
+    ),
+  component: Homepage,
 });
 
-const GOALS = [
-  { id: "launch", label: "Launch a campaign", icon: Rocket },
-  { id: "analyze", label: "Analyze existing campaigns", icon: BarChart3 },
-  { id: "creative", label: "Research or create ads", icon: Search },
-  { id: "explore", label: "Explore my AI team", icon: Bot },
-  { id: "clients", label: "Manage marketing for clients", icon: Users },
-];
+/* ------------------------------------------------------------------ */
+/* Shared bits                                                         */
+/* ------------------------------------------------------------------ */
 
-function Onboarding() {
-  const s = useDemo();
-  useEffect(() => { hydrateDemo(); }, []);
+function Logo({ light }: { light?: boolean }) {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="flex items-center gap-3 border-b border-border px-6 py-4">
-        <div className="grid size-8 place-items-center rounded-lg bg-brand font-display font-black text-brand-foreground">H</div>
-        <span className="font-display font-semibold">Hellyeah</span>
-        <Pill tone="brand" className="text-[9px] uppercase">Product simulation</Pill>
-        <div className="ml-auto flex items-center gap-1 rounded-lg border border-border bg-card p-1 text-xs font-medium">
-          {(["self", "bd"] as const).map((p) => (
-            <button key={p} onClick={() => actions.setAccessPath(p)} className={cn("rounded-md px-3 py-1.5", s.accessPath === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-              {p === "self" ? "Self-serve" : "BD-assisted invite"}
-            </button>
-          ))}
+    <Link to="/" className="flex items-center gap-2.5">
+      <div className="grid size-8 place-items-center rounded-lg bg-brand font-display font-black text-brand-foreground">H</div>
+      <span className={cn("font-display text-lg font-bold", light ? "text-ai-panel-foreground" : "text-foreground")}>Hellyeah AI</span>
+    </Link>
+  );
+}
+
+function SectionTitle({ kicker, title, sub }: { kicker: string; title: string; sub?: string }) {
+  return (
+    <div className="mx-auto max-w-2xl text-center">
+      <div className="text-xs font-bold uppercase tracking-[0.2em] text-brand">{kicker}</div>
+      <h2 className="mt-3 font-display text-3xl font-bold text-ai-panel-foreground md:text-4xl">{title}</h2>
+      {sub && <p className="mt-4 text-ai-panel-muted">{sub}</p>}
+    </div>
+  );
+}
+
+/** A chat bubble in the immersive workspace style. */
+function ChatLine({ name, role, ai, children }: { name: string; role: string; ai?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <div
+        className={cn(
+          "grid size-8 shrink-0 place-items-center rounded-full text-[10px] font-bold",
+          ai ? "bg-brand text-brand-foreground" : "bg-ai-panel-elevated text-ai-panel-foreground ring-1 ring-ai-panel-border",
+        )}
+      >
+        {name.split(" ").map((w) => w[0]).join("")}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold text-ai-panel-foreground">{name}</span>
+          <span className="text-[11px] text-ai-panel-muted">{role}</span>
+          {ai && <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand">AI</span>}
+        </div>
+        <div className="mt-0.5 text-sm leading-relaxed text-ai-panel-foreground/90">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Structured proposal card shown inside the chat preview. */
+function ProposalPreview() {
+  return (
+    <div className="ml-11 max-w-md rounded-xl border border-ai-panel-border bg-ai-panel-elevated p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-ai-panel-muted">Campaign proposal · Rev 2</span>
+        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">Awaiting approval</span>
+      </div>
+      <div className="mt-2 text-sm font-semibold text-ai-panel-foreground">Freebeat — US Awareness Campaign</div>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[11px]">
+        {[["$200/day", "Budget"], ["Meta", "Channel"], ["Reels-first", "Placements"]].map(([v, l]) => (
+          <div key={l} className="rounded-lg bg-ai-panel px-2 py-1.5">
+            <div className="font-semibold text-ai-panel-foreground">{v}</div>
+            <div className="text-ai-panel-muted">{l}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <span className="rounded-md bg-success/15 px-2.5 py-1 text-[11px] font-semibold text-success">Approve</span>
+        <span className="rounded-md bg-ai-panel px-2.5 py-1 text-[11px] font-semibold text-ai-panel-muted">Request changes</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
+function Homepage() {
+  const nav = useNavigate();
+  const startAs = (customerType: "own" | "agency", source: string) => {
+    actions.setAcquisition({ customerType, source });
+    nav({ to: "/signin" });
+  };
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+
+  return (
+    <div className="min-h-screen bg-ai-panel text-ai-panel-foreground">
+      {/* A — Navigation */}
+      <header className="sticky top-0 z-40 border-b border-ai-panel-border bg-ai-panel/85 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-6">
+          <Logo light />
+          <nav className="hidden items-center gap-6 text-sm text-ai-panel-muted md:flex">
+            <button onClick={() => scrollTo("product")} className="transition hover:text-ai-panel-foreground">Product</button>
+            <button onClick={() => scrollTo("agencies")} className="transition hover:text-ai-panel-foreground">For Agencies</button>
+            <button onClick={() => scrollTo("businesses")} className="transition hover:text-ai-panel-foreground">For Businesses</button>
+            <button onClick={() => scrollTo("how-it-works")} className="transition hover:text-ai-panel-foreground">How It Works</button>
+          </nav>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" asChild className="text-ai-panel-muted hover:text-ai-panel-foreground">
+              <Link to="/signin">Sign In</Link>
+            </Button>
+            <Button variant="brand" asChild>
+              <Link to="/signin">Get Started</Link>
+            </Button>
+          </div>
         </div>
       </header>
-      {s.onboarded ? <Done /> : s.accessPath === "bd" ? <BdReview /> : <SelfServe />}
-    </div>
-  );
-}
 
-function Done() {
-  const s = useDemo();
-  return (
-    <div className="mx-auto max-w-xl px-6 py-24 text-center">
-      <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-success/15 text-success"><Check /></div>
-      <h1 className="text-3xl font-semibold">You're set up.</h1>
-      <p className="mt-2 text-muted-foreground">{s.biz === "direct" ? "Your AI AM is ready for Northwind Coffee." : "BlueFocus workspace with Freebeat is ready."}</p>
-      <div className="mt-6 flex justify-center gap-2">
-        <Button variant="brand" asChild><Link to={s.biz === "direct" ? "/workspace" : "/overview"}>Open workspace <ArrowRight /></Link></Button>
-        <Button variant="outline" onClick={() => actions.reset()}>Restart demo</Button>
-      </div>
-    </div>
-  );
-}
-
-function Bubble({ who, children }: { who: "ai" | "user"; children: React.ReactNode }) {
-  return who === "ai" ? (
-    <div className="flex gap-3">
-      <div className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">C</div>
-      <div className="max-w-xl text-[15px] leading-relaxed">{children}</div>
-    </div>
-  ) : (
-    <div className="flex justify-end"><div className="rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-sm text-primary-foreground">{children}</div></div>
-  );
-}
-
-function SelfServe() {
-  const s = useDemo();
-  const o = s.onboarding;
-  const nav = useNavigate();
-  const [analyzing, setAnalyzing] = useState(false);
-  const goal = GOALS.find((g) => g.id === o.goal);
-  const needsCampaign = o.goal === "launch" || o.goal === "clients" || o.goal === "analyze";
-  const isAgency = o.customerType === "agency";
-  const brand: Brand | undefined = s.brands[isAgency ? "freebeat" : "direct"];
-  const checklist = [
-    { l: "Goal", done: !!o.goal },
-    { l: "Business type", done: !!o.customerType },
-    { l: isAgency ? "Agency & first client" : "Company", done: o.step >= 3 },
-    { l: "Brand Profile", done: brand?.status === "confirmed" && o.step >= 4 },
-    ...(needsCampaign ? [{ l: "Objective & channel", done: o.step >= 5 }, { l: "Account access & funding (later)", done: false, later: true }] : [{ l: "No wallet needed for this goal", done: true }]),
-  ];
-  const pickGoal = (id: string) => actions.onboarding({ goal: id, customerType: id === "clients" ? "agency" : o.customerType, step: id === "clients" ? 2 : 1 });
-  const analyze = () => {
-    setAnalyzing(true);
-    setTimeout(() => {
-      const host = o.url.replace(/^https?:\/\//, "").replace(/\/$/, "") || "example.com";
-      const b: Brand = isAgency
-        ? { ...FREEBEAT_BRAND, name: o.clientName || "Freebeat", url: host, source: "ai", status: "draft" }
-        : { name: o.company || "Northwind Coffee", description: "Specialty coffee roaster with neighborhood cafés (AI draft).", industry: "Food & beverage", audience: "Local commuters & remote workers", market: "Seattle, WA", url: host, assets: ["Logo", "Café photos (4)"], status: "draft", source: "ai" };
-      actions.setBrand(isAgency ? "freebeat" : "direct", b);
-      setAnalyzing(false);
-      actions.onboarding({ step: 3 });
-    }, 1800);
-  };
-  const finish = () => {
-    actions.finishOnboarding();
-    nav({ to: isAgency ? "/overview" : "/workspace" });
-  };
-  return (
-    <div className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[1fr_260px]">
-      <div className="space-y-6">
-        <Bubble who="ai">
-          <h1 className="font-display text-2xl font-semibold md:text-3xl">What would you like to achieve with Hellyeah?</h1>
-          <p className="mt-1 text-sm text-muted-foreground">I'm Clayton, your AI team lead. Pick one — we'll only set up what you need.</p>
-        </Bubble>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {GOALS.map((g) => (
-            <button key={g.id} onClick={() => pickGoal(g.id)} className={cn("card-surface flex items-center gap-3 p-4 text-left text-sm font-semibold transition hover:-translate-y-0.5", o.goal === g.id && "ring-2 ring-brand")}>
-              <g.icon className="size-5 text-brand" /> {g.label}
-            </button>
-          ))}
+      {/* B — Hero */}
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1fr_1.1fr] lg:pt-24">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-ai-panel-border bg-ai-panel-elevated px-3 py-1 text-xs font-medium text-ai-panel-muted">
+            <Sparkles className="size-3.5 text-brand" /> Human + AI marketing workspace
+          </div>
+          <h1 className="mt-5 font-display text-4xl font-bold leading-[1.1] tracking-tight md:text-5xl">
+            Your AI growth team. <span className="text-brand">Working alongside yours.</span>
+          </h1>
+          <p className="mt-5 max-w-lg text-lg leading-relaxed text-ai-panel-muted">
+            Bring your people, campaigns, creatives and AI teammates into one workspace. Plan campaigns, coordinate execution, track
+            results and keep work moving — without jumping between disconnected tools.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button variant="brand" size="lg" asChild>
+              <Link to="/signin">Get Started with Hellyeah <ArrowRight /></Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-ai-panel-border bg-transparent text-ai-panel-foreground hover:bg-ai-panel-elevated"
+              onClick={() => scrollTo("how-it-works")}
+            >
+              See How It Works
+            </Button>
+          </div>
         </div>
-        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!o.freeText.trim()) return; const t = o.freeText.toLowerCase(); pickGoal(t.includes("client") || t.includes("agency") ? "clients" : t.includes("creative") || t.includes("ad idea") ? "creative" : t.includes("analy") ? "analyze" : "launch"); }}>
-          <Input placeholder="Or describe it in your own words…" value={o.freeText} onChange={(e) => actions.onboarding({ freeText: e.target.value })} />
-          <Button type="submit" variant="outline"><Send /></Button>
-        </form>
 
-        {o.goal && <Bubble who="user">{goal?.label}</Bubble>}
+        {/* Hero visual — immersive workspace preview */}
+        <div className="rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-5 shadow-2xl">
+          <div className="mb-4 flex items-center gap-2 border-b border-ai-panel-border pb-3 text-xs text-ai-panel-muted">
+            <MessageSquareText className="size-3.5" /> # freebeat-growth · Shared workspace
+          </div>
+          <div className="space-y-4">
+            <ChatLine name="Sarah Linden" role="Account Manager">
+              @Clayton, review Freebeat's campaign performance and recommend our next creative tests.
+            </ChatLine>
+            <ChatLine name="Clayton" role="AI Team Lead" ai>
+              I'll ask @UA Agent to investigate performance and @Creative Agent to prepare creative directions.
+            </ChatLine>
+            <ChatLine name="UA Agent" role="AI Specialist" ai>
+              Analysis ready. Reels placements are outpacing Feed on cost per install — I've highlighted the differences worth
+              investigating.
+            </ChatLine>
+            <ProposalPreview />
+          </div>
+        </div>
+      </section>
 
-        {o.step >= 1 && o.goal !== "clients" && (
-          <>
-            <Bubble who="ai">Are you advertising your own business or managing marketing for clients?</Bubble>
-            <div className="flex gap-2">
-              {(["own", "agency"] as const).map((t) => (
-                <Button key={t} variant={o.customerType === t ? "default" : "outline"} onClick={() => actions.onboarding({ customerType: t, step: Math.max(o.step, 2) })}>
-                  {t === "own" ? <Briefcase /> : <Users />} {t === "own" ? "My own business" : "Agency / Managing clients"}
-                </Button>
-              ))}
+      {/* C — Who is Hellyeah for */}
+      <section className="border-t border-ai-panel-border py-20" id="product">
+        <div className="mx-auto max-w-6xl px-6">
+          <SectionTitle kicker="Who it's for" title="Built for the teams doing the growth work." />
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
+            <div id="agencies" className="rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-8">
+              <div className="grid size-11 place-items-center rounded-xl bg-brand/15 text-brand"><Users /></div>
+              <h3 className="mt-4 font-display text-xl font-bold">Marketing Agencies</h3>
+              <p className="mt-1 text-lg font-semibold text-brand">More clients. Less busywork.</p>
+              <p className="mt-3 text-sm leading-relaxed text-ai-panel-muted">
+                Give every client a dedicated workspace where account managers, media buyers, creative strategists and AI teammates work
+                together.
+              </p>
+              <ul className="mt-4 space-y-2 text-sm text-ai-panel-foreground/90">
+                {["Manage multiple clients", "Coordinate AI and human work", "Review and approve campaigns and creatives", "Reduce repetitive reporting and task handoffs"].map((b) => (
+                  <li key={b} className="flex items-center gap-2"><Check className="size-4 shrink-0 text-success" /> {b}</li>
+                ))}
+              </ul>
+              <Button variant="brand" className="mt-6" onClick={() => startAs("agency", "homepage-agency")}>
+                Explore Agency Workspace <ArrowRight />
+              </Button>
             </div>
-          </>
-        )}
-
-        {o.step >= 2 && (
-          <>
-            <Bubble who="ai">{isAgency ? "Great — which agency are you with, and who's your first client?" : "What's your company called and where can I find it online?"}</Bubble>
-            <div className="card-surface grid gap-3 p-4 sm:grid-cols-3">
-              <div><Label>{isAgency ? "Agency" : "Company"}</Label><Input value={isAgency ? o.company : o.company === "BlueFocus" ? "Northwind Coffee" : o.company} onChange={(e) => actions.onboarding({ company: e.target.value })} /></div>
-              {isAgency && <div><Label>First client</Label><Input value={o.clientName} onChange={(e) => actions.onboarding({ clientName: e.target.value })} /></div>}
-              <div><Label>Website / App URL</Label><Input value={isAgency ? o.url : o.url === "freebeat.ai" ? "northwind.example" : o.url} onChange={(e) => actions.onboarding({ url: e.target.value })} /></div>
-              <div className="sm:col-span-3">
-                <Button
-                  disabled={analyzing}
-                  onClick={() => {
-                    if (!isAgency) actions.onboarding({ company: o.company === "BlueFocus" ? "Northwind Coffee" : o.company, url: o.url === "freebeat.ai" ? "northwind.example" : o.url });
-                    analyze();
-                  }}
-                >
-                  {analyzing ? <><Loader2 className="animate-spin" /> Analyzing website (simulated)…</> : <><Sparkles /> Analyze website</>}
-                </Button>
-              </div>
+            <div id="businesses" className="rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-8">
+              <div className="grid size-11 place-items-center rounded-xl bg-brand/15 text-brand"><Rocket /></div>
+              <h3 className="mt-4 font-display text-xl font-bold">B2B Growth Teams</h3>
+              <p className="mt-1 text-lg font-semibold text-brand">Get marketing moving without building an entire team.</p>
+              <p className="mt-3 text-sm leading-relaxed text-ai-panel-muted">
+                Work with an AI Account Manager that helps you turn business goals into campaigns, creative briefs and next steps.
+              </p>
+              <ul className="mt-4 space-y-2 text-sm text-ai-panel-foreground/90">
+                {["AI-guided campaign planning", "Creative research and preparation", "Campaign performance monitoring", "Human oversight and approval"].map((b) => (
+                  <li key={b} className="flex items-center gap-2"><Check className="size-4 shrink-0 text-success" /> {b}</li>
+                ))}
+              </ul>
+              <Button variant="brand" className="mt-6" onClick={() => startAs("own", "homepage-business")}>
+                Explore AI Growth Teammate <ArrowRight />
+              </Button>
             </div>
-          </>
-        )}
+          </div>
+        </div>
+      </section>
 
-        {o.step >= 3 && brand && (
-          <>
-            <Bubble who="ai">Here's what I found. Everything is a <b>draft</b> until you confirm it.</Bubble>
-            <BrandCard
-              brand={brand}
-              onSave={(b) => actions.setBrand(isAgency ? "freebeat" : "direct", b)}
-              onConfirm={(b) => { actions.confirmBrand(isAgency ? "freebeat" : "direct", b); actions.onboarding({ step: needsCampaign ? 4 : 5 }); }}
-            />
-            {brand.status === "confirmed" && o.step < 4 && <Button onClick={() => actions.onboarding({ step: needsCampaign ? 4 : 5 })}>Continue</Button>}
-          </>
-        )}
-
-        {o.step >= 4 && needsCampaign && (
-          <>
-            <Bubble who="ai">Last thing for now: what's the marketing objective and channel? Account access and funding come later — only when you launch.</Bubble>
-            <div className="card-surface grid gap-3 p-4 sm:grid-cols-2">
-              <div><Label>Objective</Label>
-                <div className="mt-1 flex flex-wrap gap-1.5">{["Awareness", "Installs", "Sales"].map((x) => <Button key={x} size="sm" variant={o.objective === x ? "default" : "outline"} onClick={() => actions.onboarding({ objective: x })}>{x}</Button>)}</div>
+      {/* D — Problems & Solutions */}
+      <section className="border-t border-ai-panel-border py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <SectionTitle kicker="Why Hellyeah" title="Your marketing workflow shouldn't live in ten different places." />
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { icon: Megaphone, t: "Campaign operations", p: "Campaign preparation, execution and reporting involve repetitive work.", s: "AI teammates help organize and prepare actual marketing tasks." },
+              { icon: Users, t: "Team coordination", p: "Agency work is fragmented across people, tools and conversations.", s: "Human staff and AI Agents collaborate in one Client Workspace." },
+              { icon: Palette, t: "Creative workflow", p: "Creative files, versions, feedback and approvals are difficult to manage.", s: "Bring uploaded and AI-generated assets, version history, comments and reviews together." },
+              { icon: BarChart3, t: "Performance analysis", p: "Dashboards contain lots of data, but it is not always clear what to do next.", s: "Turn performance insights into specific UA, Creative and follow-up tasks." },
+            ].map((c) => (
+              <div key={c.t} className="rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-6">
+                <c.icon className="size-5 text-brand" />
+                <h3 className="mt-3 font-semibold">{c.t}</h3>
+                <p className="mt-2 text-sm text-ai-panel-muted">{c.p}</p>
+                <p className="mt-3 border-t border-ai-panel-border pt-3 text-sm text-ai-panel-foreground/90">{c.s}</p>
               </div>
-              <div><Label>Channel</Label>
-                <div className="mt-1 flex flex-wrap gap-1.5">{["Meta Ads", "Google Ads", "TikTok Ads"].map((x) => <Button key={x} size="sm" variant={o.channel === x ? "default" : "outline"} onClick={() => actions.onboarding({ channel: x })}>{x}</Button>)}</div>
-              </div>
-              <div className="sm:col-span-2"><Button onClick={() => actions.onboarding({ step: 5 })}>Save <Check /></Button></div>
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+        </div>
+      </section>
 
-        {o.step >= 5 && (
-          <>
-            <Bubble who="ai">{needsCampaign ? "Your AI team is ready. When you're ready to launch I'll walk you through account access, funding and approval." : "You're ready — no wallet or ad account needed for creative research."}</Bubble>
-            <Button variant="brand" size="lg" onClick={finish}>Enter workspace <ArrowRight /></Button>
-          </>
-        )}
-      </div>
-      <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-        <div className="card-surface p-4">
-          <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Setup progress</div>
-          <ul className="space-y-2 text-sm">
-            {checklist.map((c) => (
-              <li key={c.l} className="flex items-center gap-2">
-                <span className={cn("grid size-4 place-items-center rounded-full text-[9px]", c.done ? "bg-success text-primary-foreground" : "border border-border")}>{c.done && "✓"}</span>
-                <span className={cn(!c.done && "text-muted-foreground")}>{c.l}</span>
+      {/* E — How it works */}
+      <section className="border-t border-ai-panel-border py-20" id="how-it-works">
+        <div className="mx-auto max-w-6xl px-6">
+          <SectionTitle kicker="How it works" title="From a marketing goal to work that actually gets done." />
+          <ol className="mt-12 grid gap-5 md:grid-cols-5">
+            {[
+              { icon: Target, t: "Tell us your goal", d: "Select a marketing objective or describe it to AI." },
+              { icon: ClipboardList, t: "Set up your business context", d: "Confirm your company, client, brand and relevant campaign information." },
+              { icon: Bot, t: "Work with your AI teammates", d: "Clayton or your AI AM coordinates specialist capabilities." },
+              { icon: ShieldCheck, t: "Review and launch", d: "Use structured proposals, readiness checks and approvals." },
+              { icon: BarChart3, t: "Monitor and improve", d: "Understand campaign results and turn findings into follow-up work." },
+            ].map((st, i) => (
+              <li key={st.t} className="relative rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-5">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-full bg-brand text-xs font-bold text-brand-foreground">{i + 1}</span>
+                  <st.icon className="size-4 text-ai-panel-muted" />
+                </div>
+                <h3 className="mt-3 text-sm font-semibold">{st.t}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-ai-panel-muted">{st.d}</p>
               </li>
             ))}
-          </ul>
+          </ol>
+          <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-ai-panel-muted">
+            Launching real campaigns always requires the necessary authorization, funding and human approval — Hellyeah keeps those
+            checks explicit.
+          </p>
         </div>
-        <button onClick={() => toast("Human help requested (simulated)", { description: "A Hellyeah specialist would join this chat. You can keep going meanwhile." })} className="card-surface flex w-full items-center gap-2 p-4 text-left text-sm">
-          <Headset className="size-4 text-brand" /> Prefer a human? <span className="font-semibold">Get help</span>
-        </button>
-      </aside>
-    </div>
-  );
-}
+      </section>
 
-function BdReview() {
-  const s = useDemo();
-  const nav = useNavigate();
-  const brand = s.brands["freebeat"];
-  return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <Pill tone="info">Invitation from Hellyeah BD · Andy & team</Pill>
-      <h1 className="mt-3 text-3xl font-semibold">Welcome, BlueFocus. We've set things up for Freebeat.</h1>
-      <p className="mt-2 max-w-2xl text-muted-foreground">Review and correct what our team prefilled — no need to repeat onboarding.</p>
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-        {brand && (
-          <BrandCard
-            brand={brand}
-            onSave={(b) => actions.setBrand("freebeat", b)}
-            onConfirm={(b) => actions.confirmBrand("freebeat", b)}
-          />
-        )}
-        <div className="space-y-4">
-          <div className="card-surface p-4 text-sm">
-            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Preconfigured scenario</div>
-            {[["Agency", "BlueFocus"], ["End Client", "Freebeat"], ["Channel", "Meta Ads"], ["Objective", "Awareness"], ["Daily budget", "$200"], ["Total cap", "$2,000"]].map(([k, v]) => (
-              <div key={k} className="flex justify-between py-1"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>
+      {/* F — Capabilities */}
+      <section className="border-t border-ai-panel-border py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <SectionTitle kicker="Capabilities" title="One workspace for the work behind growth." />
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: MessageSquareText, t: "AI Workspace", d: "Human + AI collaboration, with Clayton and specialist Agents in one conversation." },
+              { icon: Megaphone, t: "Campaign Operations", d: "Campaign planning, management, approvals and launch tracking." },
+              { icon: Palette, t: "Creative Management", d: "Uploads, AI generation, versions, comments and creative reviews." },
+              { icon: BarChart3, t: "Analytics & Insights", d: "Performance across channels, countries, devices, campaigns and ads." },
+              { icon: Workflow, t: "Tasks & Workflows", d: "Track running work, completed tasks and items awaiting input." },
+              { icon: FolderKanban, t: "Brand, Accounts & Permissions", d: "Business context, advertising accounts and operational readiness." },
+            ].map((c) => (
+              <div key={c.t} className="rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-6 transition hover:border-brand/40">
+                <c.icon className="size-5 text-brand" />
+                <h3 className="mt-3 font-semibold">{c.t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ai-panel-muted">{c.d}</p>
+              </div>
             ))}
           </div>
-          <div className="card-surface p-4 text-sm">
-            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Enabled capabilities</div>
-            <ul className="space-y-1.5">
-              <li className="flex justify-between">AM coordination <Pill tone="success">Included</Pill></li>
-              <li className="flex justify-between">UA Agent <Pill tone="success">Enabled</Pill></li>
-              <li className="flex justify-between">Creative <Pill tone="info">Approved assets</Pill></li>
-              <li className="flex justify-between">Bulk generation <Pill>Not enabled</Pill></li>
-            </ul>
-          </div>
-          <div className="card-surface p-4 text-sm">
-            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Accounts</div>
-            <div className="flex justify-between py-1"><span>Meta ad account</span><Pill tone="success">Assigned</Pill></div>
-            <div className="flex justify-between py-1"><span>Meta Page access</span><Pill tone="danger">Authorization pending</Pill></div>
+        </div>
+      </section>
+
+      {/* G — Human + AI collaboration */}
+      <section className="border-t border-ai-panel-border py-20">
+        <div className="mx-auto max-w-4xl px-6">
+          <SectionTitle
+            kicker="Human + AI"
+            title="AI teammates that work with your team, not in another tab."
+            sub="A shared client workspace where people and Agents coordinate real marketing work."
+          />
+          <div className="mt-12 rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-6 shadow-2xl">
+            <div className="mb-5 flex items-center gap-2 border-b border-ai-panel-border pb-3 text-xs text-ai-panel-muted">
+              <MessageSquareText className="size-3.5" /> # freebeat-growth · BlueFocus × Freebeat
+            </div>
+            <div className="space-y-5">
+              <ChatLine name="Sarah Linden" role="Account Manager">
+                @Clayton, review Freebeat's campaign performance and recommend our next creative tests.
+              </ChatLine>
+              <ChatLine name="Clayton" role="AI Team Lead" ai>
+                I'll ask @UA Agent to investigate performance and @Creative Agent to prepare creative directions.
+              </ChatLine>
+              <ChatLine name="UA Agent" role="AI Specialist" ai>
+                Analysis ready. I've highlighted the placement differences worth investigating.
+              </ChatLine>
+              <ChatLine name="Creative Agent" role="AI Specialist" ai>
+                Three creative directions are ready for David's review.
+              </ChatLine>
+              <ChatLine name="David Kim" role="Creative Strategist">
+                Let's develop the second direction into a UGC variation.
+              </ChatLine>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="mt-6 flex items-center gap-3">
-        <Button variant="brand" size="lg" disabled={brand?.status !== "confirmed"} onClick={() => { actions.finishOnboarding(); nav({ to: "/overview" }); }}>
-          Confirm setup & open workspace <ArrowRight />
-        </Button>
-        {brand?.status !== "confirmed" && <span className="text-sm text-muted-foreground">Confirm the Brand Profile first.</span>}
-      </div>
+      </section>
+
+      {/* H — Trust & control */}
+      <section className="border-t border-ai-panel-border py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <SectionTitle kicker="Trust & control" title="Your team stays in control." />
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {[
+              { icon: Eye, t: "Review important work", d: "Human teams can inspect campaign proposals, creative changes and approvals before anything goes live." },
+              { icon: Lock, t: "Clear access boundaries", d: "Client workspaces and account permissions have defined scopes — teammates only see what they should." },
+              { icon: ClipboardList, t: "Track what happens", d: "Tasks, blockers, approvals and actual campaign states are visible, not hidden behind automation." },
+            ].map((c) => (
+              <div key={c.t} className="rounded-2xl border border-ai-panel-border bg-ai-panel-elevated/60 p-6">
+                <c.icon className="size-5 text-brand" />
+                <h3 className="mt-3 font-semibold">{c.t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ai-panel-muted">{c.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* I — Final CTA + footer */}
+      <section className="border-t border-ai-panel-border py-24 text-center">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="font-display text-3xl font-bold md:text-4xl">Ready to give your team an AI growth teammate?</h2>
+          <p className="mt-4 text-ai-panel-muted">
+            Start with your marketing goal. We'll help you set up your workspace and guide you through the next steps.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Button variant="brand" size="lg" asChild>
+              <Link to="/signin">Get Started with Hellyeah <ArrowRight /></Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild className="border-ai-panel-border bg-transparent text-ai-panel-foreground hover:bg-ai-panel-elevated">
+              <Link to="/signin">Already have an account? Sign In</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+      <footer className="border-t border-ai-panel-border py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-ai-panel-muted md:flex-row">
+          <Logo light />
+          <div className="flex items-center gap-6">
+            <button onClick={() => scrollTo("product")} className="transition hover:text-ai-panel-foreground">Product</button>
+            <button onClick={() => scrollTo("how-it-works")} className="transition hover:text-ai-panel-foreground">How It Works</button>
+            <Link to="/signin" className="transition hover:text-ai-panel-foreground">Sign In</Link>
+          </div>
+          <div className="text-xs">Hellyeah AI — interactive product prototype.</div>
+        </div>
+      </footer>
     </div>
   );
 }
