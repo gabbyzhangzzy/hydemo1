@@ -72,7 +72,7 @@ function Campaigns() {
     };
     return [...t].sort((a, b) => {
       const va = val(a), vb = val(b);
-      const cmp = typeof va === "string" ? va.localeCompare(vb as string) : va - vb;
+      const cmp = typeof va === "string" ? va.localeCompare(vb as string) : va - (vb as number);
       return cmp * sortDir;
     });
   }, [all, tab, q, channel, objective, status, sortKey, sortDir]);

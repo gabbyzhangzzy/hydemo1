@@ -54,7 +54,7 @@ function CampaignDetailPage() {
       brief: `@Creative Agent — prepare a creative brief for “${name}” (${campaignId}, ${objective}). Use approved brand assets only; new creative follows the normal review and approval flow.`,
       report: `@UA Agent — generate a performance review for “${name}” (${campaignId}) for the current date range. Prepare it as an internal reporting task.`,
     };
-    actions.startGenericTask(clientId, `${kind}: ${name}`.slice(0, 80), agent, prompts[kind] ?? prompts.investigate!);
+    actions.startGenericTask(clientId, `${kind}: ${name}`.slice(0, 80), agent, prompts[kind] ?? prompts["investigate"]!);
     toast(`${agent} task created`, { description: `Context for ${campaignId} was passed to the workspace.` });
     void navigate({ to: "/workspace" });
   };
