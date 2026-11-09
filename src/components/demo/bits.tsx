@@ -40,7 +40,7 @@ export function Phase({ p }: { p: "P0" | "P1" | "P2" }) {
   return <Pill tone={p === "P0" ? "primary" : "muted"} className="text-[9px] uppercase tracking-wide">{p === "P0" ? "P0" : `${p} · Planned`}</Pill>;
 }
 
-export function PageHeader({ title, sub, right, eyebrow }: { title: string; sub?: string; right?: ReactNode; eyebrow?: ReactNode }) {
+export function PageHeader({ title, sub, right, eyebrow }: { title: string; sub?: ReactNode; right?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
