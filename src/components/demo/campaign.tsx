@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { actions, can, CREATIVES, isReady, readiness, REPORT_METRICS, STATUS_FLOW, STATUS_LABEL, useDemo, type CampaignStatus } from "@/lib/demo/store";
+import { actions, can, isReady, readiness, REPORT_METRICS, STATUS_FLOW, STATUS_LABEL, useDemo, type CampaignStatus } from "@/lib/demo/store";
+import { effectiveApproval } from "@/lib/demo/creative-model";
+import { CreativePreview } from "./creative/preview";
 import { cn } from "@/lib/utils";
 import { Demo, money, Pill } from "./bits";
 
@@ -166,15 +168,10 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Approved creative assets</DialogTitle>
-            <DialogDescription>Only client-approved assets are used. New bulk generation is not enabled for this scenario.</DialogDescription>
+            <DialogDescription>Approved versions from the shared library. Mandatory client review must also be complete. Illustrative demo previews.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {CREATIVES.filter((a) => a.clientId === "freebeat" && a.status === "Approved").map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-                <div><div className="font-medium">{a.name}</div><div className="text-xs text-muted-foreground">{a.id} · {a.kind}</div></div>
-                <Pill tone="success">Approved</Pill>
-              </div>
-            ))}
+            {s.creativeAssets.filter(a=>a.clientId==="freebeat").flatMap(a=>a.versions.filter(v=>effectiveApproval(a,v)).map(v=><div key={`${a.id}-${v.number}`} className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm"><div className="w-14 shrink-0 overflow-hidden rounded"><CreativePreview version={v}/></div><div className="min-w-0 flex-1"><Button variant="link" className="h-auto whitespace-normal p-0 text-left" asChild><Link to="/creative" search={{asset:a.id,version:v.number}}>{a.name} · V{v.number}</Link></Button><div className="text-xs text-muted-foreground">{a.id} · {v.format} · {v.ratio}</div></div><Pill tone="success">Approved</Pill></div>))}
           </div>
         </DialogContent>
       </Dialog>

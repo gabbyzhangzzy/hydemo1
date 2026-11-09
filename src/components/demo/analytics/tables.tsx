@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Empty, Pill, Section } from "@/components/demo/bits";
-import { actions } from "@/lib/demo/store";
+import { actions, useDemo } from "@/lib/demo/store";
+import { CreativePreview } from "@/components/demo/creative/preview";
+import { CREATIVE_PREVIEWS, makeVersion } from "@/lib/demo/creative-seed";
 import {
   adBreakdown, campaignById, campaignTable, dailySeries, filteredRows, fmtMoney, fmtNum, fmtPct,
   groupAgg, rangeLabel, useAnalyticsFilters, type AdRow, type CampaignRow,
@@ -203,6 +205,7 @@ export function CampaignDetail({ clientIds, campaignId, onClose, onOpenAd }: { c
 
 /* ------------------------- Ad detail drawer ----------------------- */
 export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: string[]; campaignId: string | null; adId: string | null; onClose: () => void }) {
+  const s = useDemo();
   const f = useAnalyticsFilters();
   const navigate = useNavigate();
   const meta = campaignId ? campaignById(campaignId) : undefined;
@@ -210,6 +213,9 @@ export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: 
   const ads = useMemo(() => (campaignId ? adBreakdown(campaignId, rows) : []), [campaignId, rows]);
   const ad = ads.find((a) => a.ad.id === adId);
   const open = !!meta && !!ad;
+  const usage = s.creativeUsage.find(u=>u.adId===adId&&u.campaignId===campaignId);
+  const asset = s.creativeAssets.find(a=>a.id===(usage?.creativeId??ad?.ad.creativeId));
+  const version = asset?.versions.find(v=>v.number===(usage?.version??asset.current));
 
   const ask = (agent: "UA Agent" | "Creative Agent") => {
     if (!meta || !ad) return;
@@ -220,7 +226,8 @@ export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: 
       `Performance: spend ${fmtMoney(ad.spend)}, CTR ${fmtPct(ad.ctr)}, CPM ${fmtMoney(ad.cpm)}${ad.cpa != null ? `, CPA ${fmtMoney(ad.cpa)}` : ""}.`,
       agent === "Creative Agent" ? "Assess the creative and suggest iteration directions based on its performance." : "Diagnose this ad's performance and recommend next steps. Do not change budgets without approval.",
     ].join("\n");
-    actions.startGenericTask(meta.clientId, title, agent, prompt);
+    if(asset&&version) actions.creativeTask(asset.id,version.number,agent==="UA Agent"?"analysis":"revision",prompt);
+    else actions.startGenericTask(meta.clientId, title, agent, prompt);
     toast(`${agent} task created`, { description: `Context for ${ad.ad.id} was passed to the workspace.` });
     onClose();
     void navigate({ to: "/workspace" });
@@ -236,9 +243,8 @@ export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: 
               <SheetDescription>{meta.name} · {ad.ad.adset} · {meta.channel}</SheetDescription>
             </SheetHeader>
             <div className="mt-4 space-y-4">
-              <div className="grid aspect-video place-items-center rounded-xl bg-secondary">
-                <div className="text-center text-muted-foreground"><ImageIcon className="mx-auto size-8" /><div className="mt-1 text-xs">{ad.ad.format} creative preview (demo)</div></div>
-              </div>
+              <div className="overflow-hidden rounded-lg"><CreativePreview version={version??makeVersion(CREATIVE_PREVIEWS[meta.clientId==='clientb'?12:Math.abs(ad.ad.id.split('').reduce((n,c)=>n+c.charCodeAt(0),0))%12]??'')}/></div>
+              <p className="text-xs text-muted-foreground">Illustrative demo creative preview{version?` · V${version.number}`:''}</p>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 {[
                   ["Spend", fmtMoney(ad.spend)], ["Impressions", fmtNum(ad.impressions)], ["Clicks", fmtNum(ad.clicks)],
@@ -271,7 +277,7 @@ export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: 
                 </ul>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => { onClose(); void navigate({ to: "/creative" }); }}>View Creative</Button>
+                <Button size="sm" variant="outline" onClick={() => { onClose(); void navigate({ to: "/creative", search: asset&&version?{asset:asset.id,version:version.number}:{} }); }}>View Creative</Button>
                 <Button size="sm" variant="outline" onClick={() => ask("UA Agent")}>Ask UA Agent</Button>
                 <Button size="sm" variant="outline" onClick={() => ask("Creative Agent")}>Ask Creative Agent</Button>
                 <Button size="sm" variant="brand" onClick={() => ask("UA Agent")}>Create Optimization Task</Button>
