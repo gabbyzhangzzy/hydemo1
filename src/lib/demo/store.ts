@@ -925,6 +925,25 @@ export const actions = {
         return;
       }
 
+      // "Plan a new campaign" → Clayton drafts a proposal in the shared Campaign model.
+      if ((mentions.includes("clayton") || aiMentioned.length === 0) && /plan a new campaign|new campaign/i.test(trimmed)) {
+        const clientName = s.clients.find((c) => c.id === cid)?.name ?? cid;
+        const open = allProposals(s).find((c) => c.clientId === cid && STATUS_FLOW.indexOf(c.status) < STATUS_FLOW.indexOf("submitted"));
+        if (cid === "freebeat" && !s.campaign) {
+          s.campaign = { id: "CMP-FB-US-01", clientId: "freebeat", name: "Freebeat — US Awareness Campaign", platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 200, totalCap: 2000, audience: "US · 18–34 · Interests: music creation, TikTok/Reels creators", placements: ["Instagram Reels", "Facebook Feed", "Instagram Stories"], assets: 3, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "Clayton", change: "Initial proposal from planning request" }] };
+          logActivity(s, { campaignId: "CMP-FB-US-01", actor: "Clayton", kind: "Agent", action: "Proposal generated from planning request", outcome: "Revision 1 · draft created", simulated: true });
+          say(s, "clayton", "I've drafted a starting proposal: US Awareness on Meta at $200/day with a $2,000 cap, Reels-first placements based on Spring Launch learnings. Review Revision 1 in Campaigns — adjust budget or audience, then submit for Admin approval.", "proposal", cid);
+        } else if (!open) {
+          const c: Campaign = { id: id(s, "CMP-A"), clientId: cid, name: `${clientName} — New Campaign Proposal`, platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 150, totalCap: 1500, audience: "To be refined with UA Agent", placements: ["Instagram Reels", "Facebook Feed"], assets: 0, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "Clayton", change: "Initial proposal from planning request" }] };
+          s.drafts.unshift(c);
+          logActivity(s, { campaignId: c.id, actor: "Clayton", kind: "Agent", action: "Proposal generated from planning request", outcome: "Revision 1 · draft created", simulated: true });
+          say(s, "clayton", `I've drafted a starting proposal for ${clientName} — Revision 1 is in Campaigns. Tell me the goal, budget and audience and I'll refine it before you submit for approval.`, "proposal", cid);
+        } else {
+          say(s, "clayton", `There's already an open proposal for ${clientName}: “${open.name}” (Revision ${open.revision}, ${STATUS_LABEL[open.status]}). I've kept it linked in Campaigns — want me to revise it instead?`, undefined, cid);
+        }
+        return;
+      }
+
       // Default: Clayton picks it up as a generic task.
       if (mentions.includes("clayton") || aiMentioned.length === 0) {
         const title = trimmed.length > 48 ? trimmed.slice(0, 48) + "…" : trimmed;
