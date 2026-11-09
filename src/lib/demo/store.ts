@@ -519,6 +519,18 @@ export function channelName(s: State, clientId: string): string {
   return (c?.name ?? clientId).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || clientId;
 }
 
+/** All workflow proposals (main + manual/seeded drafts) — one shared Campaign model. */
+export function allProposals(s: State): Campaign[] {
+  return [s.campaign, ...s.drafts].filter((c): c is Campaign => !!c);
+}
+export function findProposal(s: State, id: string): Campaign | undefined {
+  return allProposals(s).find((c) => c.id === id);
+}
+/** Append a campaign activity entry (Activity & Approvals timeline). */
+export function logActivity(s: State, e: Omit<ActivityEntry, "id" | "at">) {
+  s.activity.unshift({ id: id(s, "EV"), at: now(), ...e });
+}
+
 export const can = {
   editDraft: (r: Role) => r === "admin" || r === "member",
   approve: (r: Role) => r === "admin",
