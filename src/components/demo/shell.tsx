@@ -133,14 +133,14 @@ function Sidebar() {
         ];
   const openCases = s.cases.filter((c) => c.status !== "Closed" && c.status !== "Resolved").length;
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+    <aside className="hidden h-full min-h-0 w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
       <div className="flex items-center gap-2 px-5 pb-3 pt-5">
         <div className="grid size-7 place-items-center rounded-lg bg-brand font-display text-sm font-black text-brand-foreground">H</div>
         <span className="font-display text-[15px] font-semibold text-sidebar-accent-foreground">Hellyeah</span>
         <span className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sidebar-primary">Prototype</span>
       </div>
       <div className="px-3 pb-2"><ClientSwitcher /></div>
-      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4">
         {items.map((g) => (
           <div key={g.group} className="mt-4">
             <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45">{g.group}</div>
@@ -376,11 +376,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
   const clientBlocked = s.role === "client" && !loc.pathname.startsWith("/portal");
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <TaskRunner />
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+        <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
           <MobileNav />
           <div className="hidden text-xs text-muted-foreground md:block">{s.role === "client" ? "Freebeat · Client Portal" : s.biz === "direct" ? "Northwind Coffee" : `BlueFocus › ${s.clients.find((c) => c.id === s.clientId)?.name ?? "All Clients"}`}</div>
           <div className="ml-auto flex items-center gap-1.5">
@@ -398,7 +398,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 md:px-8">
+        <main key={loc.pathname} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
           {clientBlocked ? (
             <div className="mx-auto max-w-md py-20 text-center">
               <h1 className="text-xl font-semibold">Agency workspace not available</h1>
