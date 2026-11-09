@@ -131,9 +131,11 @@ function Campaigns() {
                   <div className="truncate text-xs text-muted-foreground">{a.detail}</div>
                 </div>
                 <Button size="sm" variant="outline" asChild>
-                  {a.campaignId
-                    ? <Link to="/campaigns/$campaignId" params={{ campaignId: a.campaignId }}>{a.actionLabel}</Link>
-                    : <Link to={a.to}>{a.actionLabel}</Link>}
+                  {a.to === "/creative"
+                    ? <Link to="/creative">{a.actionLabel}</Link>
+                    : a.campaignId
+                      ? <Link to="/campaigns/$campaignId" params={{ campaignId: a.campaignId }}>{a.actionLabel}</Link>
+                      : <Link to="/campaigns">{a.actionLabel}</Link>}
                 </Button>
               </div>
             ))}
