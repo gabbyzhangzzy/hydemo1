@@ -34,3 +34,5 @@ use the editor.
 - The main task's status is derived from campaign/access state (`mainTaskView`) rather than stored, so it can never disagree across screens.
 - App pages live under the pathless `_shell` layout; `/` (onboarding) renders outside it.
 - `/workspace` renders in immersive mode: AppShell hides its header and collapses the sidebar to an icon rail; the workspace supplies its own header and gets prototype utilities via `useShellUtils()`, so secondary panels open as drawers instead of permanent columns.
+- Creative metadata, version reviews, policy decisions and associations remain in the shared demo store; browser file blobs use IndexedDB, so uploads remain local without bloating shared state.
+- Creative delivery and performance resolve version-pinned associations through the existing Analytics dataset; new assignments never alter deployed ads or trigger launch.
