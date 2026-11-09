@@ -305,7 +305,7 @@ const GENERIC_STAGES = (label: string, agent: string): LogEntry[] => [
 function baseState(accessPath: AccessPath): State {
   const bd = accessPath === "bd";
   return {
-    version: 4,
+    version: 5,
     accessPath,
     role: "admin",
     biz: "bluefocus",
@@ -347,6 +347,7 @@ function baseState(accessPath: AccessPath): State {
       { id: "CASE-2038", clientId: "clientb", type: "Account Opening", owner: "Anita", taskId: "T-0997", status: "In Progress", updated: "Mon 12:05", diagnostics: ["New TikTok ad account requested", "Business verification document pending", "No credentials stored in case"], notes: ["Requested business registration from agency AM."] },
     ],
     report: { status: "none", external: "" },
+    perfReports: [],
     messages: [
       { id: "M-1", clientId: "clientb", from: "sarah", text: "@Clayton, is the weekly search review for Demo Client B ready?", at: "Mon 09:05", mentions: ["clayton"] },
       { id: "M-2", clientId: "clientb", from: "clayton", text: "Yes — UA finished the weekly review: CPC is down 6% WoW (demo data), no action needed. The full summary is on the Tasks page under T-0991.", at: "Mon 09:12", taskId: "T-0991" },
