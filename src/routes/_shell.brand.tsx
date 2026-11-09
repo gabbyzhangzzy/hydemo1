@@ -23,7 +23,7 @@ function BrandPage() {
       ) : (
         <Empty title="No brand profile yet">
           <div className="mt-3 flex justify-center gap-2">
-            {cid === "freebeat" && <Button size="sm" variant="outline" asChild><Link to="/">Run onboarding</Link></Button>}
+            {cid === "freebeat" && <Button size="sm" variant="outline" asChild><Link to="/onboarding">Run onboarding</Link></Button>}
             {can.editDraft(s.role) && <Button size="sm" onClick={() => actions.setBrand(cid, { name: client?.name ?? "", description: "Describe the business", industry: "", audience: "", market: "", url: "", assets: [], status: "draft", source: "manual" })}>Create draft profile</Button>}
           </div>
         </Empty>

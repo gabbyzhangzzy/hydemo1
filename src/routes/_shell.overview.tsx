@@ -35,7 +35,7 @@ function Overview() {
       {!s.onboarded && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand-soft/50 px-4 py-3 text-sm">
           <span>Onboarding isn't finished yet — some setup is still in draft.</span>
-          <Button size="sm" variant="outline" asChild><Link to="/">Continue onboarding</Link></Button>
+          <Button size="sm" variant="outline" asChild><Link to="/onboarding">Continue onboarding</Link></Button>
         </div>
       )}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">

@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as SigninRouteImport } from './routes/signin'
 import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
 import { Route as ShellAnalyticsRouteImport } from './routes/_shell.analytics'
 import { Route as ShellBrandRouteImport } from './routes/_shell.brand'
@@ -34,6 +36,16 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const ShellRoute = ShellRouteImport.update({
   id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShellAgentsRoute = ShellAgentsRouteImport.update({
@@ -115,6 +127,8 @@ const ShellCampaignsCampaignIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/signin': typeof SigninRoute
   '/agents': typeof ShellAgentsRoute
   '/analytics': typeof ShellAnalyticsRoute
   '/brand': typeof ShellBrandRoute
@@ -133,6 +147,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/signin': typeof SigninRoute
   '/agents': typeof ShellAgentsRoute
   '/analytics': typeof ShellAnalyticsRoute
   '/brand': typeof ShellBrandRoute
@@ -153,6 +169,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
+  '/onboarding': typeof OnboardingRoute
+  '/signin': typeof SigninRoute
   '/_shell/agents': typeof ShellAgentsRoute
   '/_shell/analytics': typeof ShellAnalyticsRoute
   '/_shell/brand': typeof ShellBrandRoute
@@ -173,6 +191,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/onboarding'
+    | '/signin'
     | '/agents'
     | '/analytics'
     | '/brand'
@@ -191,6 +211,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/onboarding'
+    | '/signin'
     | '/agents'
     | '/analytics'
     | '/brand'
@@ -210,6 +232,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_shell'
+    | '/onboarding'
+    | '/signin'
     | '/_shell/agents'
     | '/_shell/analytics'
     | '/_shell/brand'
@@ -230,6 +254,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ShellRoute: typeof ShellRouteWithChildren
+  OnboardingRoute: typeof OnboardingRoute
+  SigninRoute: typeof SigninRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -246,6 +272,20 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_shell/agents': {
@@ -407,6 +447,8 @@ const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ShellRoute: ShellRouteWithChildren,
+  OnboardingRoute: OnboardingRoute,
+  SigninRoute: SigninRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
