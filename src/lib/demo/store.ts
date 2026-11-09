@@ -124,6 +124,22 @@ export interface Notif {
   read: boolean;
 }
 
+/** Agency performance report built from the Analytics dashboard. */
+export interface PerfReport {
+  id: string;
+  clientId: string;
+  title: string;
+  rangeLabel: string;
+  narrative: string;
+  charts: string[];
+  comment: string;
+  metrics: { label: string; value: string }[];
+  insights: string[];
+  status: "draft" | "ready" | "published";
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface State {
   version: number;
   accessPath: AccessPath;
@@ -163,6 +179,7 @@ export interface State {
   };
   cases: Case[];
   report: { status: "none" | "draft" | "ready" | "published"; external: string };
+  perfReports: PerfReport[];
   messages: Msg[];
   notifications: Notif[];
   checks: string[];
