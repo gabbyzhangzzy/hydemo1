@@ -10,33 +10,117 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as ShellCampaignsRouteImport } from './routes/_shell.campaigns'
+import { Route as ShellOpsRouteImport } from './routes/_shell.ops'
+import { Route as ShellOverviewRouteImport } from './routes/_shell.overview'
+import { Route as ShellTasksRouteImport } from './routes/_shell.tasks'
+import { Route as ShellWalletRouteImport } from './routes/_shell.wallet'
+import { Route as ShellWorkspaceRouteImport } from './routes/_shell.workspace'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellCampaignsRoute = ShellCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellOpsRoute = ShellOpsRouteImport.update({
+  id: '/ops',
+  path: '/ops',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellOverviewRoute = ShellOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellTasksRoute = ShellTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellWalletRoute = ShellWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellWorkspaceRoute = ShellWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => ShellRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/campaigns': typeof ShellCampaignsRoute
+  '/ops': typeof ShellOpsRoute
+  '/overview': typeof ShellOverviewRoute
+  '/tasks': typeof ShellTasksRoute
+  '/wallet': typeof ShellWalletRoute
+  '/workspace': typeof ShellWorkspaceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/campaigns': typeof ShellCampaignsRoute
+  '/ops': typeof ShellOpsRoute
+  '/overview': typeof ShellOverviewRoute
+  '/tasks': typeof ShellTasksRoute
+  '/wallet': typeof ShellWalletRoute
+  '/workspace': typeof ShellWorkspaceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_shell': typeof ShellRouteWithChildren
+  '/_shell/campaigns': typeof ShellCampaignsRoute
+  '/_shell/ops': typeof ShellOpsRoute
+  '/_shell/overview': typeof ShellOverviewRoute
+  '/_shell/tasks': typeof ShellTasksRoute
+  '/_shell/wallet': typeof ShellWalletRoute
+  '/_shell/workspace': typeof ShellWorkspaceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/campaigns'
+    | '/ops'
+    | '/overview'
+    | '/tasks'
+    | '/wallet'
+    | '/workspace'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/campaigns'
+    | '/ops'
+    | '/overview'
+    | '/tasks'
+    | '/wallet'
+    | '/workspace'
+  id:
+    | '__root__'
+    | '/'
+    | '/_shell'
+    | '/_shell/campaigns'
+    | '/_shell/ops'
+    | '/_shell/overview'
+    | '/_shell/tasks'
+    | '/_shell/wallet'
+    | '/_shell/workspace'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ShellRoute: typeof ShellRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +132,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shell/campaigns': {
+      id: '/_shell/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof ShellCampaignsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/ops': {
+      id: '/_shell/ops'
+      path: '/ops'
+      fullPath: '/ops'
+      preLoaderRoute: typeof ShellOpsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/overview': {
+      id: '/_shell/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof ShellOverviewRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/tasks': {
+      id: '/_shell/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof ShellTasksRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/wallet': {
+      id: '/_shell/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof ShellWalletRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/workspace': {
+      id: '/_shell/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof ShellWorkspaceRouteImport
+      parentRoute: typeof ShellRoute
+    }
   }
 }
 
+interface ShellRouteChildren {
+  ShellCampaignsRoute: typeof ShellCampaignsRoute
+  ShellOpsRoute: typeof ShellOpsRoute
+  ShellOverviewRoute: typeof ShellOverviewRoute
+  ShellTasksRoute: typeof ShellTasksRoute
+  ShellWalletRoute: typeof ShellWalletRoute
+  ShellWorkspaceRoute: typeof ShellWorkspaceRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellCampaignsRoute: ShellCampaignsRoute,
+  ShellOpsRoute: ShellOpsRoute,
+  ShellOverviewRoute: ShellOverviewRoute,
+  ShellTasksRoute: ShellTasksRoute,
+  ShellWalletRoute: ShellWalletRoute,
+  ShellWorkspaceRoute: ShellWorkspaceRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ShellRoute: ShellRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
