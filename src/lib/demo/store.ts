@@ -189,6 +189,12 @@ export interface State {
   wallet: { balance: number; activity: { id: string; text: string; amount: number; by: string }[] };
   tasks: Task[];
   campaign: Campaign | null;
+  /** Additional proposals created manually or seeded for the demo; same Campaign model as `campaign`. */
+  drafts: Campaign[];
+  /** Campaign activity & approval timeline entries. */
+  activity: ActivityEntry[];
+  /** Composer prefill consumed by the Agent Workspace (e.g. "Plan with Clayton"). */
+  pendingPrompt: string | null;
   briefs: Brief[];
   collab: { step: number };
   resumed: boolean;
