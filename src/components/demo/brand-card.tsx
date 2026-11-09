@@ -17,7 +17,7 @@ const FIELDS: [keyof Brand, string][] = [
 export function BrandCard({ brand, onConfirm, onSave, readOnly }: { brand: Brand; onConfirm?: (b: Brand) => void; onSave?: (b: Brand) => void; readOnly?: boolean }) {
   const [edit, setEdit] = useState(false);
   const [b, setB] = useState(brand);
-  useEffect(() => setB(brand), [brand]);
+  useEffect(() => { setB(brand); }, [brand]);
   const sourceLabel = brand.source === "bd" ? "Prefilled by Hellyeah BD" : brand.source === "ai" ? "AI-extracted from website" : "Entered manually";
   return (
     <div className="card-surface overflow-hidden">
