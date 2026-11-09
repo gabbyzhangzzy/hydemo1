@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { actions, useDemo } from "@/lib/demo/store";
+import { actions, hydrateDemo, useDemo } from "@/lib/demo/store";
 import { pageHead } from "@/lib/demo/head";
 
 export const Route = createFileRoute("/signin")({
@@ -39,6 +39,7 @@ function SignIn() {
   const [busy, setBusy] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState("");
+  useEffect(() => { hydrateDemo(); }, []);
 
   const continueTo = (provider: "google" | "microsoft" | "email", em?: string) => {
     setBusy(provider);
