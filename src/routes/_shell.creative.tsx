@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Demo, Empty, PageHeader, Phase, Pill } from "@/components/demo/bits";
+import { Demo, Empty, PageHeader, Phase, Pill, Section } from "@/components/demo/bits";
 import { CREATIVES, useDemo } from "@/lib/demo/store";
 import { pageHead } from "@/lib/demo/head";
 
@@ -15,8 +15,9 @@ function Creative() {
   const s = useDemo();
   const ids = s.biz === "direct" ? ["direct"] : s.clientId === "all" ? s.clients.map((c) => c.id) : [s.clientId];
   const list = CREATIVES.filter((a) => ids.includes(a.clientId));
+  const briefs = s.briefs.filter((b) => ids.includes(b.clientId));
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader eyebrow="Marketing" title="Creative" sub={`Capability: ${s.creativeLevel === "limited" ? "approved existing assets only" : "enabled"}`} right={<><Demo /><Button variant="outline" onClick={() => toast("Bulk generation not enabled", { description: "P1 — requires Creative capability upgrade by Ops." })}>Generate new <Phase p="P1" /></Button></>} />
       {list.length === 0 ? <Empty title="No assets for this client" /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

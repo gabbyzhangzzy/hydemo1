@@ -394,65 +394,6 @@ function TaskDrawer({ taskId, onClose }: { taskId: string | null; onClose: () =>
 }
 
 /* ------------------------------------------------------------------ */
-/* Composer with @mention autocomplete                                 */
-/* ------------------------------------------------------------------ */
-function Composer({ s, cid, disabled }: { s: State; cid: string; disabled: boolean }) {
-  const [input, setInput] = useState("");
-  const [mentionQ, setMentionQ] = useState<string | null>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-
-  const onChange = (v: string) => {
-    setInput(v);
-    const m = v.slice(0, taRef.current?.selectionStart ?? v.length).match(/@([\w ]*)$/);
-    setMentionQ(m ? (m[1] ?? "") : null);
-  };
-  const insertMention = (label: string) => {
-    const pos = taRef.current?.selectionStart ?? input.length;
-    const before = input.slice(0, pos).replace(/@[\w ]*$/, `@${label} `);
-    setInput(before + input.slice(pos));
-    setMentionQ(null);
-    taRef.current?.focus();
-  };
-  const send = () => {
-    if (!input.trim()) return;
-    actions.sendChannelMessage(cid, input);
-    setInput("");
-    setMentionQ(null);
-  };
-  const options = mentionQ != null ? MENTIONABLES.filter((m) => m.label.toLowerCase().includes(mentionQ.toLowerCase())) : [];
-
-  return (
-    <div className="relative border-t border-ai-panel-border p-3">
-      {options.length > 0 && (
-        <div className="absolute bottom-full left-3 mb-1 w-64 overflow-hidden rounded-xl border border-ai-panel-border bg-card text-card-foreground shadow-xl">
-          <div className="border-b border-border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mention</div>
-          {options.map((o) => (
-            <button key={o.id} onClick={() => insertMention(o.label)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted">
-              {o.kind === "ai" ? <Bot className="size-3.5 text-brand" /> : <User className="size-3.5 text-muted-foreground" />}
-              <span className="font-medium">@{o.label}</span>
-              <span className="text-[10px] text-muted-foreground">{o.kind === "ai" ? "AI teammate" : "Agency team"}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
-        <Textarea
-          ref={taRef}
-          rows={1}
-          value={input}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={disabled ? "Ops can view; messaging as agency user disabled" : `Message #${channelName(s, cid)} — type @ to mention`}
-          disabled={disabled}
-          className="min-h-10 resize-none border-ai-panel-border bg-ai-panel-elevated text-ai-panel-foreground placeholder:text-ai-panel-muted"
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } if (e.key === "Escape") setMentionQ(null); }}
-        />
-        <Button type="submit" variant="brand" disabled={disabled}><Send /></Button>
-      </form>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Message list                                                        */
 /* ------------------------------------------------------------------ */
 function MessageList({ s, cid, msgs, onOpenTask, onFollowUp }: { s: State; cid: string; msgs: Msg[]; onOpenTask: (id: string) => void; onFollowUp: () => void }) {
