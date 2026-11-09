@@ -134,7 +134,7 @@ export function ProposalCard({ compact, dark }: { compact?: boolean; dark?: bool
             <Button
               onClick={() => {
                 const d = Number(daily), t = Number(cap);
-                if (!(d > 0) || !(t >= d)) return toast.error("Daily budget must be > 0 and cap ≥ daily.");
+                if (!(d > 0) || !(t >= d)) { toast.error("Daily budget must be > 0 and cap ≥ daily."); return; }
                 actions.editCampaign({ dailyBudget: d, totalCap: t }, `Budget ${money(d)}/day, cap ${money(t)}`);
                 setBudgetOpen(false);
               }}
@@ -244,10 +244,10 @@ export function LaunchPanel() {
   if (!can.launch(s.role)) reasons.push("Only a BlueFocus Admin can finalize launch");
   const canClick = approvedCurrent && ready && can.launch(s.role);
   const simulate = idx >= 3 && c.status !== "live_verified" && (s.role === "ops" || s.role === "admin");
-  const next = STATUS_FLOW[idx + 1];
+  const next = STATUS_FLOW[idx + 1] ?? "live_verified";
   return (
     <div className="space-y-4">
-      <ol className="grid grid-cols-4 gap-2 md:grid-cols-8">
+      <ol className="grid grid-cols-4 gap-x-2 gap-y-3">
         {STATUS_FLOW.map((st, i) => (
           <li key={st} className="flex flex-col gap-1.5">
             <div className={cn("h-1.5 rounded-full", i < idx ? "bg-success" : i === idx ? (st === "live_verified" ? "bg-success" : "bg-brand") : "bg-border")} />

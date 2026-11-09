@@ -65,7 +65,7 @@ export function Section({ title, right, children, className }: { title: ReactNod
   );
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "brand" | "danger" }) {
+export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "brand" | "danger" | undefined }) {
   return (
     <div className="card-surface p-4">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>

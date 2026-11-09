@@ -29,7 +29,7 @@ function Agents() {
             <div className="mt-3 font-display text-lg font-semibold">{a.n}</div>
             <div className="text-xs text-muted-foreground">{a.r}</div>
             <p className="mt-2 text-sm">{a.d}</p>
-            <div className="mt-3 text-xs text-muted-foreground">Tasks: {s.tasks.filter((t) => t.agent.includes(a.n.split(" ")[0])).length}</div>
+            <div className="mt-3 text-xs text-muted-foreground">Tasks: {s.tasks.filter((t) => t.agent.includes(a.n.split(" ")[0] ?? a.n)).length}</div>
             <Button size="sm" variant="outline" className="mt-3" asChild><Link to="/workspace">Open in workspace</Link></Button>
           </div>
         ))}
