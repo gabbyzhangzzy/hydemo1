@@ -71,6 +71,18 @@ export interface Revision {
   by: string;
   change: string;
 }
+/** One entry in a campaign's Activity & Approvals timeline. */
+export interface ActivityEntry {
+  id: string;
+  campaignId: string;
+  at: string;
+  actor: string;
+  kind: "Human" | "Agent" | "System" | "Ops";
+  action: string;
+  object?: string | undefined;
+  outcome?: string | undefined;
+  simulated?: boolean | undefined;
+}
 export interface Campaign {
   id: string;
   clientId: string;
@@ -177,6 +189,12 @@ export interface State {
   wallet: { balance: number; activity: { id: string; text: string; amount: number; by: string }[] };
   tasks: Task[];
   campaign: Campaign | null;
+  /** Additional proposals created manually or seeded for the demo; same Campaign model as `campaign`. */
+  drafts: Campaign[];
+  /** Campaign activity & approval timeline entries. */
+  activity: ActivityEntry[];
+  /** Composer prefill consumed by the Agent Workspace (e.g. "Plan with Clayton"). */
+  pendingPrompt: string | null;
   briefs: Brief[];
   collab: { step: number };
   resumed: boolean;
@@ -276,6 +294,33 @@ export const CREATIVES = [
   { id: "D-01", clientId: "direct", name: "Morning brew hero", kind: "Image · 1:1", status: "Approved" },
 ];
 
+/** Illustrative extra proposals so the Campaigns hub shows every workflow state. Same Campaign model as the main proposal. */
+export function seedDrafts(): Campaign[] {
+  return [
+    {
+      id: "CMP-FB-TTSPARK", clientId: "freebeat", name: "Freebeat — TikTok Spark Push", platform: "TikTok Ads", objective: "Traffic", geo: "United States",
+      dailyBudget: 150, totalCap: 1500, audience: "US · 18–30 · Music & creator interests", placements: ["TikTok Feed"], assets: 1,
+      revision: 2, status: "awaiting_approval", approvedRevision: null,
+      revisions: [
+        { rev: 1, by: "UA Agent", change: "Initial proposal from TikTok Viral Hooks learnings" },
+        { rev: 2, by: "Alex Rivera", change: "Daily budget $120 → $150 after pacing review" },
+      ],
+    },
+    {
+      id: "CMP-FB-HOLIDAY", clientId: "freebeat", name: "Freebeat — Holiday Retargeting", platform: "Meta", objective: "Conversions", geo: "US · UK",
+      dailyBudget: 90, totalCap: 900, audience: "Site visitors 30d · App installers", placements: ["Facebook Feed", "Instagram Stories"], assets: 0,
+      revision: 1, status: "draft", approvedRevision: null,
+      revisions: [{ rev: 1, by: "Sarah Linden", change: "Manual draft — waiting on holiday creative" }],
+    },
+    {
+      id: "CMP-B-UGC", clientId: "clientb", name: "Client B — UGC Creator Test", platform: "Meta", objective: "Conversions", geo: "United States",
+      dailyBudget: 75, totalCap: 750, audience: "US · 25–44 · Skincare interests", placements: ["Instagram Reels"], assets: 1,
+      revision: 1, status: "draft", approvedRevision: null,
+      revisions: [{ rev: 1, by: "Sarah Linden", change: "Manual draft" }],
+    },
+  ];
+}
+
 export const MAIN_TASK_ID = "T-1024";
 export const MAIN_PROMPT =
   "@Clayton, can you review Freebeat's Meta performance over the last seven days and prepare recommendations for our next creative batch?";
@@ -354,6 +399,9 @@ function baseState(accessPath: AccessPath): State {
       { id: "T-1003", clientId: "direct", title: "Local awareness idea for Northwind", agent: "AI AM", status: "completed", stage: 3, stages: GENERIC_STAGES("Local awareness idea", "AI AM"), result: "Suggested a 3km radius Meta campaign (draft idea).", createdAt: "Sun 16:20" },
     ],
     campaign: null,
+    drafts: seedDrafts(),
+    activity: [],
+    pendingPrompt: null,
     briefs: [],
     collab: { step: 0 },
     resumed: false,
@@ -407,6 +455,9 @@ export function hydrateDemo() {
         state.creativeAssets ??= seedCreatives();
         state.creativeUsage ??= seedUsage();
         state.creativePolicy ??= { enabled: false, version: 1, enabledBy: null };
+        state.drafts ??= seedDrafts();
+        state.activity ??= [];
+        state.pendingPrompt ??= null;
         emit();
       }
     }
@@ -466,6 +517,18 @@ export function channelName(s: State, clientId: string): string {
   if (clientId === "freebeat") return "freebeat-growth";
   const c = s.clients.find((x) => x.id === clientId);
   return (c?.name ?? clientId).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || clientId;
+}
+
+/** All workflow proposals (main + manual/seeded drafts) — one shared Campaign model. */
+export function allProposals(s: State): Campaign[] {
+  return [s.campaign, ...s.drafts].filter((c): c is Campaign => !!c);
+}
+export function findProposal(s: State, id: string): Campaign | undefined {
+  return allProposals(s).find((c) => c.id === id);
+}
+/** Append a campaign activity entry (Activity & Approvals timeline). */
+export function logActivity(s: State, e: Omit<ActivityEntry, "id" | "at">) {
+  s.activity.unshift({ id: id(s, "EV"), at: now(), ...e });
 }
 
 export const can = {
@@ -826,7 +889,9 @@ export const actions = {
       const aiMentioned: string[] = mentions.filter((m) => m === "clayton" || m === "ua" || m === "creative");
       const humansMentioned: string[] = mentions.filter((m) => !aiMentioned.includes(m));
 
-      if (cid === "freebeat" && mentions.includes("clayton") && !collabTask(s)) {
+      // Guided scenario hijacks the first generic @Clayton message — but an explicit
+      // "plan a new campaign" request goes to the proposal-drafting branch instead.
+      if (cid === "freebeat" && mentions.includes("clayton") && !collabTask(s) && !/plan a new campaign|new campaign/i.test(trimmed)) {
         collabStart(s, p?.id ?? "sarah", trimmed);
         return;
       }
@@ -859,6 +924,25 @@ export const actions = {
           ? "On it — pulling the last 7 days of demo performance data. I'll post findings here shortly."
           : "On it — I'll work within the approved asset set and post an updated concept here.", undefined, cid);
         check(s, "c20");
+        return;
+      }
+
+      // "Plan a new campaign" → Clayton drafts a proposal in the shared Campaign model.
+      if ((mentions.includes("clayton") || aiMentioned.length === 0) && /plan a new campaign|new campaign/i.test(trimmed)) {
+        const clientName = s.clients.find((c) => c.id === cid)?.name ?? cid;
+        const open = allProposals(s).find((c) => c.clientId === cid && STATUS_FLOW.indexOf(c.status) < STATUS_FLOW.indexOf("submitted"));
+        if (cid === "freebeat" && !s.campaign) {
+          s.campaign = { id: "CMP-FB-US-01", clientId: "freebeat", name: "Freebeat — US Awareness Campaign", platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 200, totalCap: 2000, audience: "US · 18–34 · Interests: music creation, TikTok/Reels creators", placements: ["Instagram Reels", "Facebook Feed", "Instagram Stories"], assets: 3, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "Clayton", change: "Initial proposal from planning request" }] };
+          logActivity(s, { campaignId: "CMP-FB-US-01", actor: "Clayton", kind: "Agent", action: "Proposal generated from planning request", outcome: "Revision 1 · draft created", simulated: true });
+          say(s, "clayton", "I've drafted a starting proposal: US Awareness on Meta at $200/day with a $2,000 cap, Reels-first placements based on Spring Launch learnings. Review Revision 1 in Campaigns — adjust budget or audience, then submit for Admin approval.", "proposal", cid);
+        } else if (!open) {
+          const c: Campaign = { id: id(s, "CMP-A"), clientId: cid, name: `${clientName} — New Campaign Proposal`, platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 150, totalCap: 1500, audience: "To be refined with UA Agent", placements: ["Instagram Reels", "Facebook Feed"], assets: 0, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "Clayton", change: "Initial proposal from planning request" }] };
+          s.drafts.unshift(c);
+          logActivity(s, { campaignId: c.id, actor: "Clayton", kind: "Agent", action: "Proposal generated from planning request", outcome: "Revision 1 · draft created", simulated: true });
+          say(s, "clayton", `I've drafted a starting proposal for ${clientName} — Revision 1 is in Campaigns. Tell me the goal, budget and audience and I'll refine it before you submit for approval.`, "proposal", cid);
+        } else {
+          say(s, "clayton", `There's already an open proposal for ${clientName}: “${open.name}” (Revision ${open.revision}, ${STATUS_LABEL[open.status]}). I've kept it linked in Campaigns — want me to revise it instead?`, undefined, cid);
+        }
         return;
       }
 
@@ -923,6 +1007,7 @@ export const actions = {
     update((s) => {
       if (s.campaign || !can.editDraft(s.role)) return;
       s.campaign = { id: "CMP-FB-US-01", clientId: "freebeat", name: "Freebeat — US Awareness Campaign", platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 200, totalCap: 2000, audience: "US · 18–34 · Interests: music creation, TikTok/Reels creators", placements: ["Instagram Reels", "Facebook Feed", "Instagram Stories"], assets: 3, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "UA Agent", change: "Initial proposal" }] };
+      logActivity(s, { campaignId: "CMP-FB-US-01", actor: "UA Agent", kind: "Agent", action: "Proposal generated from campaign review", outcome: "Revision 1 · draft created", simulated: true });
       say(s, "ua", "Campaign draft CMP-FB-US-01 created from the review: Spring Launch showed Reels CPM 18% below Feed, so I weighted Reels first. Proposal Revision 1 is ready.", "proposal", "freebeat", { taskId: MAIN_TASK_ID });
       if (s.pageAccess !== "connected") {
         check(s, "c6");
@@ -980,6 +1065,7 @@ export const actions = {
       const cid = "CASE-2041";
       s.cases.unshift({ id: cid, clientId: "freebeat", type: "Meta Page Authorization", owner: ownerFor("Meta Page Authorization"), taskId: MAIN_TASK_ID, status: "Open", updated: now(), diagnostics: ["Ad account act_DEMO_88231 assigned to BlueFocus BM", "Facebook Page “Freebeat” not shared with BlueFocus Business Manager", "Required permission: ADVERTISE on Page", "Customer conversation: summarized only (private messages not shared)", "Credentials: never stored in case"], notes: [] });
       s.pageAccess = "pending_support";
+      if (s.campaign) logActivity(s, { campaignId: s.campaign.id, actor: "Hellyeah Ops", kind: "Ops", action: `Support case ${cid} created — Meta Page authorization`, outcome: "Launch blocked pending verification", simulated: true });
       const t = s.tasks.find((x) => x.id === MAIN_TASK_ID);
       if (t) t.caseId = cid;
       check(s, "c7");
@@ -1017,6 +1103,7 @@ export const actions = {
       }
       c.recheck = `${now()} · Recheck passed: ADVERTISE permission confirmed (simulated).`;
       s.pageAccess = "connected";
+      if (s.campaign) logActivity(s, { campaignId: s.campaign.id, actor: "Hellyeah Ops", kind: "Ops", action: "Blocker resolved and verified — Meta Page access connected", outcome: "Readiness check now passes", simulated: true });
       check(s, "c10");
       say(s, "clayton", "Good news — Meta Page access is verified. You can resume T-1024 and continue to approval.", "resume");
       notify(s, "Meta Page access verified. T-1024 can resume.", "/workspace");
@@ -1032,53 +1119,96 @@ export const actions = {
   },
 
   /* ---------------- Campaign / approval / launch ---------------- */
-  editCampaign(patch: Partial<Pick<Campaign, "dailyBudget" | "totalCap" | "audience" | "placements">>, change: string) {
+  editCampaign(patch: Partial<Pick<Campaign, "dailyBudget" | "totalCap" | "audience" | "placements">>, change: string, campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || !can.editDraft(s.role)) return;
       if (STATUS_FLOW.indexOf(c.status) >= STATUS_FLOW.indexOf("submitted")) return;
       const hadApproval = c.status === "approved" || c.status === "awaiting_approval";
       Object.assign(c, patch);
       c.revision += 1;
       c.revisions.push({ rev: c.revision, by: actorName(s), change });
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Revision ${c.revision} — ${change}`, outcome: hadApproval ? "Prior approval invalidated" : "Draft updated" });
       if (hadApproval) {
         c.status = "draft";
         c.approvedRevision = null;
         check(s, "c12");
         notify(s, `Proposal edited to Revision ${c.revision}. Previous approval invalidated.`, "/campaigns");
       }
-      say(s, "system", `Proposal updated to Revision ${c.revision}: ${change}${hadApproval ? " — prior approval invalidated." : ""}`);
+      say(s, "system", `Proposal updated to Revision ${c.revision}: ${change}${hadApproval ? " — prior approval invalidated." : ""}`, undefined, c.clientId);
     });
   },
-  submitForApproval() {
+  submitForApproval(campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || c.status !== "draft" || !can.editDraft(s.role)) return;
       c.status = "awaiting_approval";
       c.changesRequested = undefined;
       if (s.role === "member") check(s, "c4");
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Approval requested for Revision ${c.revision}`, outcome: "Pending Admin review" });
       notify(s, `Approval requested for Revision ${c.revision} by ${actorName(s)}.`, "/campaigns");
-      say(s, "system", `Revision ${c.revision} submitted for Admin approval.`);
+      say(s, "system", `Revision ${c.revision} submitted for Admin approval.`, undefined, c.clientId);
     });
   },
-  approve() {
+  approve(campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || c.status !== "awaiting_approval" || !can.approve(s.role)) return;
       c.status = "approved";
       c.approvedRevision = c.revision;
       if (s.wallet.activity.some((a) => a.amount > 0)) check(s, "c5");
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Revision ${c.revision} approved`, outcome: "Approval granted for this exact revision" });
       notify(s, `Revision ${c.revision} approved by ${actorName(s)}.`, "/campaigns");
-      say(s, "system", `Admin approved Revision ${c.revision}. Campaign proposal is ready for launch once readiness checks pass.`);
+      say(s, "system", `Admin approved Revision ${c.revision}. Campaign proposal is ready for launch once readiness checks pass.`, undefined, c.clientId);
     });
   },
-  requestChanges(note: string) {
+  requestChanges(note: string, campaignId?: string) {
     update((s) => {
-      const c = s.campaign;
+      const c = campaignId ? findProposal(s, campaignId) : s.campaign;
       if (!c || c.status !== "awaiting_approval" || !can.approve(s.role)) return;
       c.status = "draft";
       c.changesRequested = note || "Changes requested";
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: `Changes requested on Revision ${c.revision}`, outcome: c.changesRequested });
       notify(s, `Changes requested on Revision ${c.revision}: ${c.changesRequested}`, "/campaigns");
+    });
+  },
+  /** Create a manual campaign draft — same Campaign model as AI-created proposals. */
+  createManualCampaign(fields: { clientId: string; name: string; platform: string; objective: string; geo: string; dailyBudget: number; totalCap: number; audience: string; placements: string[]; creativeIds: string[] }) {
+    const cid = `CMP-M-${state.seq + 1}`;
+    update((s) => {
+      if (!can.editDraft(s.role) || !fields.name.trim() || !(fields.dailyBudget > 0) || fields.totalCap < fields.dailyBudget) return;
+      const c: Campaign = {
+        id: id(s, "CMP-M"), clientId: fields.clientId, name: fields.name.trim(), platform: fields.platform, objective: fields.objective,
+        geo: fields.geo, dailyBudget: fields.dailyBudget, totalCap: fields.totalCap, audience: fields.audience,
+        placements: fields.placements, assets: fields.creativeIds.length, revision: 1, status: "draft", approvedRevision: null,
+        revisions: [{ rev: 1, by: actorName(s), change: "Manual draft created" }],
+      };
+      s.drafts.unshift(c);
+      for (const key of fields.creativeIds) {
+        const [aid, vn] = key.split("@");
+        const a = s.creativeAssets.find((x) => x.id === aid);
+        const v = a?.versions.find((x) => x.number === Number(vn));
+        if (!a || !v || a.clientId !== fields.clientId || !effectiveApproval(a, v)) continue;
+        if (!s.creativeUsage.some((u) => u.creativeId === a.id && u.version === v.number && u.campaignId === c.id)) {
+          s.creativeUsage.push({ creativeId: a.id, version: v.number, campaignId: c.id });
+        }
+      }
+      logActivity(s, { campaignId: c.id, actor: actorName(s), kind: "Human", action: "Campaign draft created manually", outcome: `Revision 1 · ${fields.platform} · $${fields.dailyBudget}/day` });
+      notify(s, `Draft “${c.name}” created — it now appears in Campaigns.`, "/campaigns");
+    });
+    return cid;
+  },
+  /** New Campaign → Plan with Clayton: prefill the workspace composer for the current client. */
+  planWithClayton(clientId: string) {
+    update((s) => {
+      const name = s.clients.find((c) => c.id === clientId)?.name ?? "the client";
+      s.pendingPrompt = `@Clayton Help me plan a new campaign for ${name}.`;
+      if (s.clientId !== clientId) s.clientId = clientId;
+    });
+  },
+  consumePendingPrompt() {
+    update((s) => {
+      s.pendingPrompt = null;
     });
   },
   addFunds(amount: number) {
@@ -1112,6 +1242,7 @@ export const actions = {
         s.launch.inFlight = false;
         if (s.campaign && s.campaign.status === "approved") {
           s.campaign.status = "submitted";
+          logActivity(s, { campaignId: s.campaign.id, actor: actorName(s), kind: "System", action: `Launch submitted (request ${s.launch.requestId})`, outcome: "Submitted to Hellyeah Ops", simulated: true });
           notify(s, "Launch submitted to Hellyeah Ops (simulated).", "/campaigns");
         }
       });
@@ -1141,6 +1272,7 @@ export const actions = {
       }
       s.launch.error = null;
       c.status = next;
+      logActivity(s, { campaignId: c.id, actor: "System", kind: "System", action: `Status → ${STATUS_LABEL[next]}`, outcome: next === "provider_accepted" ? `Provider ID ${s.launch.providerId}` : next === "live_verified" ? `First spend confirmed: $${s.launch.firstSpend}` : undefined, simulated: true });
       if (next === "live_verified") {
         check(s, "c14");
         s.report = { status: "draft", external: DEFAULT_EXTERNAL };

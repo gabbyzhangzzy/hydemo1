@@ -667,7 +667,14 @@ function ComposerBridge({ s, cid, followUpRef }: { s: State; cid: string; follow
 }
 
 function ComposerInner({ s, cid, prefill }: { s: State; cid: string; prefill: boolean }) {
-  return <ComposerWithPrefill s={s} cid={cid} initial={prefill ? "@UA Agent " : ""} />;
+  // Consume a pending prompt set elsewhere (e.g. Campaigns → "Plan with Clayton").
+  // Capture it once at mount so clearing the store doesn't remount the composer empty.
+  const pending = s.pendingPrompt;
+  const [captured] = useState(pending);
+  useEffect(() => {
+    if (pending) actions.consumePendingPrompt();
+  }, [pending]);
+  return <ComposerWithPrefill key={captured ?? "default"} s={s} cid={cid} initial={captured ?? (prefill ? "@UA Agent " : "")} />;
 }
 
 function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initial: string }) {
