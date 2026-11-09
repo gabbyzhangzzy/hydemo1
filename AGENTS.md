@@ -36,3 +36,4 @@ use the editor.
 - `/workspace` renders in immersive mode: AppShell hides its header and collapses the sidebar to an icon rail; the workspace supplies its own header and gets prototype utilities via `useShellUtils()`, so secondary panels open as drawers instead of permanent columns.
 - Creative metadata, version reviews, policy decisions and associations remain in the shared demo store; browser file blobs use IndexedDB, so uploads remain local without bloating shared state.
 - Creative delivery and performance resolve version-pinned associations through the existing Analytics dataset; new assignments never alter deployed ads or trigger launch.
+- The Campaigns hub (`/campaigns`) merges workflow proposals (store Campaign records) with delivery campaigns (Analytics dataset) via `src/lib/demo/campaign-hub.ts`; proposals never show invented metrics. `/campaigns/$campaignId` nests under the hub route, so the hub renders `<Outlet />` when a detail path matches.
