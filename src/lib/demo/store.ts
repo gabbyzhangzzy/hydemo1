@@ -1070,6 +1070,26 @@ export const actions = {
       }
     });
   },
+  /* ---------------- Analytics performance reports ---------------- */
+  createPerfReport(r: Omit<PerfReport, "id" | "status" | "createdBy" | "createdAt">) {
+    const rid = `RPT-${state.seq + 1}`;
+    update((s) => {
+      s.perfReports.unshift({ ...r, id: id(s, "RPT"), status: "draft", createdBy: actorName(s), createdAt: now() });
+      notify(s, `Performance report ${rid} created as an internal draft.`, "/analytics");
+    });
+    return rid;
+  },
+  updatePerfReport(rid: string, patch: Partial<Pick<PerfReport, "narrative" | "charts" | "comment" | "status">>) {
+    update((s) => {
+      const r = s.perfReports.find((x) => x.id === rid);
+      if (!r) return;
+      Object.assign(r, patch);
+      if (patch.status === "published") {
+        check(s, "c15");
+        notify(s, `${rid} published to the ${s.clients.find((c) => c.id === r.clientId)?.name ?? "client"} Client Portal.`, "/portal");
+      }
+    });
+  },
   markAllRead() {
     update((s) => s.notifications.forEach((n) => (n.read = true)));
   },
