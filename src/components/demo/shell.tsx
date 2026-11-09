@@ -125,7 +125,7 @@ export function useShellUtils() {
   return c;
 }
 
-function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: () => void }) {
+function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: (() => void) | undefined }) {
   const s = useDemo();
   const loc = useLocation();
   const items: { group: string; items: NavItem[] }[] =
