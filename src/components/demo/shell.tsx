@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
-  BarChart3, Bell, Bot, Briefcase, Building2, Check, ChevronsUpDown, ClipboardCheck, FlaskConical, Headset, Home, Image as ImageIcon, LayoutGrid, ListChecks, MessageSquare, Palette, Plus, RotateCcw, Settings2, Slack, Smartphone, Sparkles, Users, Wallet, Workflow,
+  BarChart3, Bell, Bot, Briefcase, Building2, Check, ChevronsUpDown, ClipboardCheck, FlaskConical, Headset, Home, Image as ImageIcon, LayoutGrid, ListChecks, MessageSquare, Palette, PanelLeftClose, PanelLeftOpen, Plus, RotateCcw, Settings2, Slack, Smartphone, Sparkles, Users, Wallet, Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -116,7 +116,16 @@ function ClientSwitcher() {
   );
 }
 
-function Sidebar() {
+type ShellUtils = { openSlack: () => void; openMobile: () => void; openChecks: () => void; openScenario: () => void };
+const ShellCtx = createContext<ShellUtils | null>(null);
+/** Prototype utilities (Slack/Mobile previews, checks, scenario) for screens that render their own header. */
+export function useShellUtils() {
+  const c = useContext(ShellCtx);
+  if (!c) throw new Error("useShellUtils must be used inside AppShell");
+  return c;
+}
+
+function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: () => void }) {
   const s = useDemo();
   const loc = useLocation();
   const items: { group: string; items: NavItem[] }[] =
@@ -132,12 +141,33 @@ function Sidebar() {
           ...(s.biz === "bluefocus" ? [{ group: "Preview", items: [{ to: "/portal", label: "Client Portal (P1)", icon: Sparkles }] }] : []),
         ];
   const openCases = s.cases.filter((c) => c.status !== "Closed" && c.status !== "Resolved").length;
+  if (rail) {
+    return (
+      <aside className="hidden h-full min-h-0 w-16 shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground lg:flex">
+        <button onClick={onToggle} title="Expand navigation" className="grid size-8 place-items-center rounded-lg bg-brand font-display text-sm font-black text-brand-foreground">H</button>
+        <nav className="mt-4 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto overscroll-contain px-2">
+          {items.flatMap((g) => g.items).map((it) => {
+            const active = loc.pathname === it.to;
+            const Icon = it.icon;
+            return (
+              <Link key={it.to} to={it.to} title={it.label} aria-label={it.label} className={cn("relative grid size-10 shrink-0 place-items-center rounded-lg transition-colors", active ? "bg-sidebar-accent text-sidebar-primary" : "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}>
+                <Icon className="size-[18px]" />
+                {it.to === "/ops" && openCases > 0 && <span className="absolute right-1 top-1 size-2 rounded-full bg-sidebar-primary" />}
+              </Link>
+            );
+          })}
+        </nav>
+        <button onClick={onToggle} title="Expand navigation" aria-label="Expand navigation" className="mt-2 grid size-10 place-items-center rounded-lg hover:bg-sidebar-accent/60"><PanelLeftOpen className="size-[18px]" /></button>
+      </aside>
+    );
+  }
   return (
     <aside className="hidden h-full min-h-0 w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
       <div className="flex items-center gap-2 px-5 pb-3 pt-5">
         <div className="grid size-7 place-items-center rounded-lg bg-brand font-display text-sm font-black text-brand-foreground">H</div>
         <span className="font-display text-[15px] font-semibold text-sidebar-accent-foreground">Hellyeah</span>
         <span className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sidebar-primary">Prototype</span>
+        {onToggle && <button onClick={onToggle} title="Collapse navigation" aria-label="Collapse navigation" className="grid size-7 place-items-center rounded-md hover:bg-sidebar-accent"><PanelLeftClose className="size-4" /></button>}
       </div>
       <div className="px-3 pb-2"><ClientSwitcher /></div>
       <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4">
@@ -162,7 +192,7 @@ function Sidebar() {
   );
 }
 
-function DemoControls({ onChecks, onScenario }: { onChecks: () => void; onScenario: () => void }) {
+export function DemoControls({ onChecks, onScenario, compact }: { onChecks: () => void; onScenario: () => void; compact?: boolean }) {
   const s = useDemo();
   const nav = useNavigate();
   const roles: [Role, string][] = [["admin", "BlueFocus Admin"], ["member", "BlueFocus Member"], ["ops", "Hellyeah Ops"], ["client", "Freebeat End Client"]];
@@ -179,9 +209,13 @@ function DemoControls({ onChecks, onScenario }: { onChecks: () => void; onScenar
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="outline" className="border-dashed border-brand/50 text-brand">
-          <FlaskConical /> Prototype Demo Controls
-        </Button>
+        {compact ? (
+          <Button size="icon" variant="ghost" className="text-ai-panel-muted hover:bg-ai-panel-elevated hover:text-brand" aria-label="Prototype Demo Controls" title="Prototype Demo Controls"><FlaskConical /></Button>
+        ) : (
+          <Button size="sm" variant="outline" className="border-dashed border-brand/50 text-brand">
+            <FlaskConical /> Prototype Demo Controls
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 space-y-4">
         <div className="text-[11px] text-muted-foreground">Product simulation · no real auth, ads, payments or messages.</div>
@@ -208,14 +242,14 @@ function DemoControls({ onChecks, onScenario }: { onChecks: () => void; onScenar
   );
 }
 
-function Notifications() {
+export function Notifications({ className }: { className?: string }) {
   const s = useDemo();
   const unread = s.notifications.filter((n) => !n.read).length;
   const visible = s.role === "client" ? s.notifications.filter((n) => n.to === "/portal") : s.notifications;
   return (
     <Popover onOpenChange={(o) => !o && unread && actions.markAllRead()}>
       <PopoverTrigger asChild>
-        <Button size="icon" variant="ghost" className="relative" aria-label="Notifications">
+        <Button size="icon" variant="ghost" className={cn("relative", className)} aria-label="Notifications">
           <Bell />
           {unread > 0 && s.role !== "client" && <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-brand text-[9px] font-bold text-brand-foreground">{unread}</span>}
         </Button>
@@ -375,12 +409,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (s.tasks.some((t) => t.id === "T-1024")) actions.markCheck("c18");
   };
   const clientBlocked = s.role === "client" && !loc.pathname.startsWith("/portal");
+  const immersive = loc.pathname === "/workspace" && !clientBlocked;
+  const [railOpen, setRailOpen] = useState(false);
+  const utils: ShellUtils = { openSlack: () => openPreview(setSlack), openMobile: () => openPreview(setMobile), openChecks: () => setChecks(true), openScenario: () => setScenario(true) };
   return (
+    <ShellCtx.Provider value={utils}>
     <div className="flex h-screen overflow-hidden bg-background">
       <TaskRunner />
-      <Sidebar />
+      <Sidebar rail={immersive && !railOpen} onToggle={immersive ? () => setRailOpen((v) => !v) : undefined} />
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-        <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
+        {!immersive && <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
           <MobileNav />
           <div className="hidden text-xs text-muted-foreground md:block">{s.role === "client" ? "Freebeat · Client Portal" : s.biz === "direct" ? "Northwind Coffee" : `BlueFocus › ${s.clients.find((c) => c.id === s.clientId)?.name ?? "All Clients"}`}</div>
           <div className="ml-auto flex items-center gap-1.5">
@@ -397,8 +435,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="leading-tight"><div className="text-xs font-semibold">{u.name}</div><div className="text-[10px] text-muted-foreground">{u.title}</div></div>
             </div>
           </div>
-        </header>
-        <main key={loc.pathname} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
+        </header>}
+        <main key={loc.pathname} className={immersive ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8"}>
           {clientBlocked ? (
             <div className="mx-auto max-w-md py-20 text-center">
               <h1 className="text-xl font-semibold">Agency workspace not available</h1>
@@ -415,15 +453,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       <ChecksDialog open={checks} onOpenChange={setChecks} />
       <ScenarioDialog open={scenario} onOpenChange={setScenario} />
     </div>
+    </ShellCtx.Provider>
   );
 }
 
-function MobileNav() {
+export function MobileNav({ className }: { className?: string }) {
   const s = useDemo();
   const all = s.role === "client" ? [{ to: "/portal", label: "Client Portal" }] : [{ to: "/workspace", label: "Agent Workspace" }, ...NAV.flatMap((g) => g.items), ...(s.role === "ops" ? [{ to: "/ops", label: "Ops Queue" }] : [])];
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className="lg:hidden">Menu</Button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className={cn("lg:hidden", className)}>Menu</Button></DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {all.map((i) => (<DropdownMenuItem key={i.to} asChild><Link to={i.to}>{i.label}</Link></DropdownMenuItem>))}
       </DropdownMenuContent>
