@@ -1,4 +1,7 @@
 import { useSyncExternalStore } from "react";
+import { seedCreatives, seedUsage, makeVersion, CREATIVE_PREVIEWS } from "./creative-seed";
+import { canReview, effectiveApproval, policyChecks, POLICY_NAME, type CreativeAsset, type CreativeVersion, type CreativeUsage, type CreativePolicy, type ReviewStatus } from "./creative-model";
+import { campaignById } from "./analytics-data";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -58,6 +61,10 @@ export interface Task {
   caseId?: string;
   result?: string | undefined;
   createdAt: string;
+  creativeId?: string;
+  creativeVersion?: number;
+  creativeKind?: "revision" | "generation" | "analysis";
+  creativeReason?: string;
 }
 export interface Revision {
   rev: number;
@@ -106,6 +113,8 @@ export interface Msg {
   card?: MsgCard | undefined;
   mentions?: string[] | undefined;
   taskId?: string | undefined;
+  creativeId?: string;
+  creativeVersion?: number;
 }
 export interface Brief {
   id: string;
@@ -142,6 +151,9 @@ export interface PerfReport {
 
 export interface State {
   version: number;
+  creativeAssets: CreativeAsset[];
+  creativeUsage: CreativeUsage[];
+  creativePolicy: CreativePolicy;
   accessPath: AccessPath;
   role: Role;
   biz: Biz;
@@ -306,6 +318,9 @@ function baseState(accessPath: AccessPath): State {
   const bd = accessPath === "bd";
   return {
     version: 5,
+    creativeAssets: seedCreatives(),
+    creativeUsage: seedUsage(),
+    creativePolicy: { enabled: false, version: 1, enabledBy: null },
     accessPath,
     role: "admin",
     biz: "bluefocus",
@@ -389,6 +404,9 @@ export function hydrateDemo() {
       const parsed = JSON.parse(raw) as State;
       if (parsed.version === serverState.version) {
         state = parsed;
+        state.creativeAssets ??= seedCreatives();
+        state.creativeUsage ??= seedUsage();
+        state.creativePolicy ??= { enabled: false, version: 1, enabledBy: null };
         emit();
       }
     }
@@ -628,7 +646,83 @@ function approveInternal(s: State) {
 /* ------------------------------------------------------------------ */
 /* Actions                                                             */
 /* ------------------------------------------------------------------ */
+function creativeCampaignClient(cid:string) { return campaignById(cid)?.clientId; }
+function completeCreativeTask(s:State,t:Task) {
+  if(!t.creativeId)return;
+  const a=s.creativeAssets.find(a=>a.id===t.creativeId);const source=a?.versions.find(v=>v.number===t.creativeVersion);if(!a||!source)return;
+  let vn=source.number;
+  if(t.creativeKind==="revision") {
+    const v=makeVersion(source.preview,Math.max(...a.versions.map(v=>v.number))+1);
+    v.format=source.format;v.ratio=source.ratio;v.by="Creative Agent";v.createdAt=new Date().toISOString();v.sourceVersion=source.number;v.material=true;v.change=t.creativeReason||"Revised opening (simulated)";
+    if(source.mediaKey)v.mediaKey=source.mediaKey;
+    v.audit.push({at:v.createdAt,actor:"Creative Agent",action:`New material revision from V${source.number}; prior approval not inherited. Illustrative preview reused.`});a.versions.push(v);a.current=v.number;vn=v.number;
+  }
+  delete a.pendingTask;
+  t.result=t.creativeKind==="analysis"?"Analysis ready. Review linked Analytics ad metrics; test a fresh opening without changing deployed versions (simulated).":`V${vn} ready for human review (simulated).`;
+  s.messages.push({id:id(s,"M"),clientId:a.clientId,from:t.creativeKind==="analysis"?"ua":"creative",text:`${a.name}: ${t.result} @David`,at:now(),taskId:t.id,creativeId:a.id,creativeVersion:vn});notify(s,`${a.name}: ${t.result}`,"/creative");
+}
 export const actions = {
+  importCreative(asset: CreativeAsset) {
+    update(s => { if (!can.editDraft(s.role)) return; s.creativeAssets.unshift(asset); notify(s, `${asset.name} imported locally as Draft.`, "/creative"); });
+  },
+  setCreativePolicy(enabled: boolean) {
+    update(s => { if(s.role !== "admin") return; s.creativePolicy = { enabled, version: s.creativePolicy.version + 1, enabledBy: enabled ? actorName(s) : null }; });
+  },
+  creativeClientRequired(aid: string, required: boolean) {
+    update(s => {const a=s.creativeAssets.find(a=>a.id===aid);if(!a||!canReview(s.role,s.person,a))return;a.clientRequired=required;});
+  },
+  creativeReview(aid:string, vn:number, review:ReviewStatus, reason="") {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(!a||!v||!canReview(s.role,s.person,a))return;
+      if(review==="Changes Requested"&&!reason.trim())return;
+      v.review=review;v.approval=review==="Approved"?"Human Approved":null;if(review==="Approved")v.approvedBy=actorName(s);else {v.shared=false;v.clientApproved=false;}
+      v.audit.push({at:new Date().toISOString(),actor:actorName(s),action:`${review} V${vn}${reason?` — ${reason}`:""}`});
+      if(reason)v.comments.push({id:id(s,"CC"),text:reason,by:actorName(s),at:new Date().toISOString(),resolved:false});
+      notify(s,`${a.name} V${vn}: ${review}`,"/creative");
+    });
+  },
+  creativeComment(aid:string,vn:number,text:string,parentId?:string) {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(!a||!v||!can.editDraft(s.role)||!text.trim())return;
+      v.comments.push({id:id(s,"CC"),text:text.trim(),by:actorName(s),at:new Date().toISOString(),resolved:false,...(parentId?{parentId}:{})});
+      notify(s,`${actorName(s)} commented on ${a.name} V${vn}`,"/creative");
+    });
+    if(text.includes("@Creative Agent")) actions.creativeTask(aid,vn,"revision",text);
+  },
+  resolveCreativeComment(aid:string,vn:number,commentId:string) {
+    update(s=>{if(!can.editDraft(s.role))return;const c=s.creativeAssets.find(a=>a.id===aid)?.versions.find(v=>v.number===vn)?.comments.find(c=>c.id===commentId);if(c)c.resolved=!c.resolved;});
+  },
+  shareCreative(aid:string,vn:number) {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(!a||!v||v.review!=="Approved"||!canReview(s.role,s.person,a))return;v.shared=true;v.audit.push({at:new Date().toISOString(),actor:actorName(s),action:`Explicitly shared V${vn} with client`});notify(s,`${a.name} V${vn} shared for client review`,"/portal");});
+  },
+  clientApproveCreative(aid:string,vn:number) {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(s.role!=="client"||a?.clientId!=="freebeat"||!v?.shared||v.review!=="Approved")return;v.clientApproved=true;v.audit.push({at:new Date().toISOString(),actor:actorName(s),action:`Client approved V${vn}`});});
+  },
+  adaptCreative(aid:string,vn:number,material=false) {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const source=a?.versions.find(v=>v.number===vn);if(!a||!source||!can.editDraft(s.role))return;
+      const v=makeVersion(source.preview,Math.max(...a.versions.map(v=>v.number))+1);v.format=source.format;v.ratio="4:5";v.width=768;v.height=960;v.by="Creative Agent";v.createdAt=new Date().toISOString();v.sourceVersion=vn;v.technical=!material;v.material=material;v.change=material?"Substantive change: rewritten product claim (simulated)":"Technical variant: aspect-ratio padding only, original content retained";if(source.mediaKey)v.mediaKey=source.mediaKey;
+      const checks=policyChecks(a,v,s.creativePolicy);const pass=checks.every(c=>c.passed);v.review=pass?"Approved":"In Review";v.approval=pass?"Auto Approved":null;if(pass)v.approvedBy="System / Creative Agent";
+      v.audit.push({at:v.createdAt,actor:"System / Creative Agent",action:`${pass?"Auto Approved — Policy Check Passed":"Human Review Required"} · ${POLICY_NAME} · Policy v${s.creativePolicy.version} · Source ${a.id} V${vn}`,checks});a.versions.push(v);a.current=v.number;
+    });
+  },
+  assignCreative(aid:string,vn:number,campaignId:string) {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);const campaign=STATIC_CAMPAIGNS.find(c=>c.id===campaignId)??(s.campaign?.id===campaignId?s.campaign:undefined);
+      // Analytics campaigns are validated through the shared caller-supplied registry helper.
+      const client=campaign?.clientId??creativeCampaignClient(campaignId);
+      if(!a||!v||!can.editDraft(s.role)||client!==a.clientId||!effectiveApproval(a,v)||!v.validated||v.warning)return;
+      if(!s.creativeUsage.some(u=>u.creativeId===aid&&u.version===vn&&u.campaignId===campaignId))s.creativeUsage.push({creativeId:aid,version:vn,campaignId});
+      v.audit.push({at:new Date().toISOString(),actor:actorName(s),action:`Assigned V${vn} to ${campaignId}; no launch triggered`});
+    });
+  },
+  creativeTask(aid:string,vn:number,kind:"revision"|"analysis",reason:string) {
+    update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(!a||!v||!can.editDraft(s.role)||a.pendingTask)return;
+      const tid=id(s,"T");a.pendingTask=tid;const agent=kind==="analysis"?"UA Agent":"Creative Agent";
+      s.tasks.unshift({id:tid,clientId:a.clientId,title:`${kind==="analysis"?"Analyze":"Revise"} ${a.name} V${vn}`,agent,status:"running",stage:0,stages:GENERIC_STAGES(reason,agent),createdAt:now(),creativeId:aid,creativeVersion:vn,creativeKind:kind,creativeReason:reason});
+      s.messages.push({id:id(s,"M"),clientId:a.clientId,from:kind==="analysis"?"ua":"creative",text:`${agent} is ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`,at:now(),taskId:tid,creativeId:aid,creativeVersion:vn});notify(s,`${tid} started for ${a.name}`,"/workspace");
+    });
+  },
+  generateCreative(clientId:string,name:string,prompt:string) {
+    const aid=`GEN-${state.seq+1}`;
+    update(s=>{if(!can.editDraft(s.role))return;const v=makeVersion(CREATIVE_PREVIEWS[clientId==="clientb"?12:clientId==="direct"?14:6]??"",1);v.by="Creative Agent";v.createdAt=new Date().toISOString();const tid=id(s,"T");s.creativeAssets.unshift({id:aid,clientId,name,source:"AI Generated",channel:"Meta",tags:["Concept"],current:1,reviewer:s.person,clientRequired:false,versions:[v],pendingTask:tid});s.tasks.unshift({id:tid,clientId,title:`Generate ${name} (simulated)`,agent:"Creative Agent",status:"running",stage:0,stages:GENERIC_STAGES(prompt,"Creative Agent"),createdAt:now(),creativeId:aid,creativeVersion:1,creativeKind:"generation",creativeReason:prompt});notify(s,`Generation task ${tid} started`,"/creative");});return aid;
+  },
   reset(path?: AccessPath) {
     update((s) => {
       const keep = path ?? s.accessPath;
@@ -818,6 +912,7 @@ export const actions = {
       const t = s.tasks.find((x) => x.id === tid);
       if (!t || t.status === "completed") return;
       t.status = "completed";
+      completeCreativeTask(s,t);
       t.result = t.result ?? `Marked complete by ${actorName(s)}`;
       if (tid === MAIN_TASK_ID) s.collab.step = Math.max(s.collab.step, 9);
       notify(s, `${tid} marked complete.`, "/tasks");
@@ -868,6 +963,7 @@ export const actions = {
         t.stage += 1;
         if (t.stage >= t.stages.length) {
           t.status = "completed";
+          if(t.creativeId){completeCreativeTask(s,t);continue;}
           t.result = "Summary: spend pacing on track; frequency stable; recommend testing one new hook (demo).";
           const from: MsgFrom = t.agent.includes("UA") ? "ua" : t.agent.includes("Creative") ? "creative" : t.clientId === "direct" ? "aiam" : "clayton";
           say(s, from, `${t.id} done — ${t.result}`, undefined, t.clientId, { taskId: t.id });

@@ -1,57 +1,34 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Image as ImageIcon } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Demo, Empty, PageHeader, Phase, Pill, Section } from "@/components/demo/bits";
-import { CREATIVES, useDemo } from "@/lib/demo/store";
-import { pageHead } from "@/lib/demo/head";
-
-export const Route = createFileRoute("/_shell/creative")({
-  head: () => pageHead("Creative Library", "Approved creative assets per client, used by the Creative capability."),
-  component: Creative,
-});
-
-function Creative() {
-  const s = useDemo();
-  const ids = s.biz === "direct" ? ["direct"] : s.clientId === "all" ? s.clients.map((c) => c.id) : [s.clientId];
-  const list = CREATIVES.filter((a) => ids.includes(a.clientId));
-  const briefs = s.briefs.filter((b) => ids.includes(b.clientId));
-  return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader eyebrow="Marketing" title="Creative" sub={`Capability: ${s.creativeLevel === "limited" ? "approved existing assets only" : "enabled"}`} right={<><Demo /><Button variant="outline" onClick={() => toast("Bulk generation not enabled", { description: "P1 — requires Creative capability upgrade by Ops." })}>Generate new <Phase p="P1" /></Button></>} />
-      {list.length === 0 ? <Empty title="No assets for this client" /> : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((a) => (
-            <div key={a.id} className="card-surface overflow-hidden">
-              <div className="grid aspect-video place-items-center bg-secondary"><ImageIcon className="size-8 text-muted-foreground" /></div>
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-2"><span className="font-mono text-[11px] text-muted-foreground">{a.id}</span><Pill tone={a.status === "Approved" ? "success" : "warning"}>{a.status}</Pill></div>
-                <div className="mt-1 font-medium">{a.name}</div>
-                <div className="text-xs text-muted-foreground">{a.kind} · {s.clients.find((c) => c.id === a.clientId)?.name}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {briefs.length > 0 && (
-        <Section title="Creative briefs" right={<Demo />}>
-          <div className="space-y-3">
-            {briefs.map((b) => (
-              <div key={b.id} className="rounded-xl border border-border p-4 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div><span className="font-mono text-[11px] text-muted-foreground">{b.id}</span> <span className="font-semibold">{b.title}</span></div>
-                  <div className="flex gap-1.5">
-                    <Pill tone="info">Revision {b.revision}</Pill>
-                    <Pill tone={b.status === "shared" ? "success" : b.status === "approved_internal" ? "primary" : "muted"}>{b.status === "shared" ? "Shared with client" : b.status === "approved_internal" ? "Approved internally" : "Internal draft"}</Pill>
-                  </div>
-                </div>
-                <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-sm">{b.concepts.map((c) => <li key={c}>{c}</li>)}</ol>
-                <p className="mt-2 text-xs text-muted-foreground">{b.note} · Linked task {b.taskId}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-    </div>
-  );
+import { useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { Upload, Sparkles, Search, LayoutGrid, List, SlidersHorizontal, ShieldCheck, CheckCircle2, Image as ImageIcon, Video, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription } from '@/components/ui/dialog';
+import { Demo,Empty,PageHeader,Pill,Section } from '@/components/demo/bits';
+import { actions,useDemo } from '@/lib/demo/store';
+import { pageHead } from '@/lib/demo/head';
+import { CAMPAIGNS } from '@/lib/demo/analytics-data';
+import { deliverySummary,versionUsage } from '@/lib/demo/creative-selectors';
+import { CreativePreview } from '@/components/demo/creative/preview';
+import { CreativeDetail,ReviewPill } from '@/components/demo/creative/detail';
+import { UploadAssets } from '@/components/demo/creative/upload';
+export const Route=createFileRoute('/_shell/creative')({head:()=>pageHead('Creative Library','Manage, review and launch versioned creative assets across your agency campaigns.'),validateSearch:(s:Record<string,unknown>):{asset?:string;version?:number}=>({...typeof s['asset']==='string'?{asset:s['asset']}:{},...Number(s['version'])>0?{version:Number(s['version'])}:{}}),component:Creative});
+function Filter({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[]}){return <label className="min-w-[125px] flex-1 text-[11px] font-semibold text-muted-foreground">{label}<select aria-label={label} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-card px-2 text-xs font-normal text-foreground"><option value="all">All {label.toLowerCase()}</option>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></label>;}
+function Creative(){
+ const s=useDemo();const search=Route.useSearch();const navigate=Route.useNavigate();const [tab,setTab]=useState('All Assets');const [view,setView]=useState('grid');const [query,setQuery]=useState('');const [review,setReview]=useState('all');const [delivery,setDelivery]=useState('all');const [channel,setChannel]=useState('all');const [format,setFormat]=useState('all');const [campaign,setCampaign]=useState('all');const [date,setDate]=useState('all');const [tag,setTag]=useState('all');const [needs,setNeeds]=useState(false);const [upload,setUpload]=useState(false);const [generate,setGenerate]=useState(false);const [policy,setPolicy]=useState(false);const [genName,setGenName]=useState('Freebeat — Creator-led opening');const [prompt,setPrompt]=useState('Create a native, creator-led music video concept with a stronger first three seconds.');const [genClient,setGenClient]=useState(s.clientId==='all'?'freebeat':s.clientId);
+ const ids=s.biz==='direct'?['direct']:s.clientId==='all'?s.clients.filter(c=>c.biz===s.biz).map(c=>c.id):[s.clientId];const assets=s.creativeAssets.filter(a=>ids.includes(a.clientId));const editable=s.role==='admin'||s.role==='member';const selected=assets.find(a=>a.id===search.asset);const open=(asset:string,version?:number)=>navigate({search:{asset,...version?{version}:{}}});
+ const list=assets.filter(a=>{const v=a.versions.find(v=>v.number===a.current);if(!v)return false;return(tab==='All Assets'||a.source===(tab==='Uploaded'?'Uploaded':'AI Generated'))&&(!query||`${a.name} ${a.tags.join(' ')} ${a.id}`.toLowerCase().includes(query.toLowerCase()))&&(review==='all'||v.review===review)&&(!needs||['In Review','Changes Requested'].includes(v.review)||a.clientRequired&&!v.clientApproved)&&(delivery==='all'||(delivery==='Not Assigned'?versionUsage(s,a,v).length===0:versionUsage(s,a,v).some(u=>u.status===delivery)))&&(channel==='all'||a.channel===channel)&&(format==='all'||v.format===format)&&(campaign==='all'||s.creativeUsage.some(u=>u.creativeId===a.id&&u.campaignId===campaign))&&(tag==='all'||a.tags.includes(tag))&&(date==='all'||Date.now()-Date.parse(v.createdAt)<Number(date.split(' ')[1])*86400000);});
+ const reset=()=>{setQuery('');setReview('all');setDelivery('all');setChannel('all');setFormat('all');setCampaign('all');setDate('all');setTag('all');setNeeds(false);};
+ return <div className="mx-auto max-w-7xl space-y-5"><PageHeader eyebrow="Marketing" title="Creative Library" sub="Manage, review and launch creative assets across your campaigns." right={<><Button size="icon" variant="outline" aria-label="Creative Auto-approval Rules" title="Creative Auto-approval Rules" onClick={()=>setPolicy(true)}><ShieldCheck/></Button><Button variant="outline" disabled={!editable} onClick={()=>setUpload(true)}><Upload/>Upload Assets</Button><Button variant="brand" disabled={!editable} onClick={()=>{setGenClient(s.clientId==='all'?'freebeat':s.clientId);setGenerate(true);}}><Sparkles/>Generate with AI</Button></>}/>
+ <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border"><div className="flex gap-1" role="tablist" aria-label="Asset source">{['All Assets','Uploaded','AI Generated'].map(t=><Button role="tab" aria-selected={t===tab} key={t} variant="ghost" className={`rounded-none border-b-2 py-5 ${t===tab?'border-brand text-foreground':'border-transparent text-muted-foreground'}`} onClick={()=>setTab(t)}>{t}<span className="text-xs text-muted-foreground">{assets.filter(a=>t==='All Assets'||a.source===(t==='Uploaded'?'Uploaded':'AI Generated')).length}</span></Button>)}</div><Demo>Illustrative demo assets</Demo></div>
+ <div className="space-y-3"><div className="flex flex-wrap items-center gap-2"><div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input aria-label="Search creative assets" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search assets, tags or names" className="pl-9"/></div><Button variant={needs?'secondary':'outline'} onClick={()=>setNeeds(n=>!n)}><CheckCircle2/>Needs Review</Button><div className="flex rounded-md border border-border"><Button size="icon" variant={view==='grid'?'secondary':'ghost'} title="Grid view" aria-label="Grid view" onClick={()=>setView('grid')}><LayoutGrid/></Button><Button size="icon" variant={view==='list'?'secondary':'ghost'} title="List view" aria-label="List view" onClick={()=>setView('list')}><List/></Button></div></div>
+ <div className="flex flex-wrap gap-3"><Filter label="Review status" value={review} onChange={setReview} options={['Draft','In Review','Changes Requested','Approved','Archived']}/><Filter label="Delivery status" value={delivery} onChange={setDelivery} options={['Not Assigned','Ready to Launch','Scheduled / Pending','Active','Paused','Completed']}/><Filter label="Channel" value={channel} onChange={setChannel} options={['Meta','Google Ads','TikTok Ads']}/><Filter label="Format" value={format} onChange={setFormat} options={['Image','Video']}/><label className="min-w-[170px] flex-1 text-[11px] font-semibold text-muted-foreground">Campaign<select aria-label="Campaign filter" value={campaign} onChange={e=>setCampaign(e.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-card px-2 text-xs font-normal text-foreground"><option value="all">All campaigns</option>{CAMPAIGNS.filter(c=>ids.includes(c.clientId)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><Filter label="Date" value={date} onChange={setDate} options={['Last 7 days','Last 30 days','Last 90 days']}/><Filter label="Tags" value={tag} onChange={setTag} options={[...new Set(assets.flatMap(a=>a.tags))]}/></div><div className="flex items-center justify-between text-xs text-muted-foreground"><span>{list.length} assets · {assets.filter(a=>a.versions.find(v=>v.number===a.current)?.review==='Approved').length} approved</span><Button size="sm" variant="ghost" onClick={reset}><X/>Clear filters</Button></div></div>
+ {list.length===0?<Empty title="No matching assets"><Button variant="outline" size="sm" onClick={reset}>Clear filters</Button></Empty>:view==='grid'?<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{list.map(a=>{const v=a.versions.find(v=>v.number===a.current);if(!v)return null;return <article key={a.id} className="overflow-hidden rounded-lg border border-border bg-card shadow-card"><Button variant="ghost" className="block h-auto w-full rounded-none p-0" aria-label={`Open ${a.name}`} onClick={()=>open(a.id)}><CreativePreview version={v}/></Button><div className="space-y-3 p-4"><div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"><span className="flex items-center gap-1">{a.source==='AI Generated'?<Sparkles className="size-3 text-brand"/>:<Upload className="size-3"/>}{a.source}</span><span>V{v.number}</span></div><Button variant="link" className="h-auto max-w-full justify-start whitespace-normal p-0 text-left font-semibold leading-snug text-foreground" onClick={()=>open(a.id)}>{a.name}</Button><div className="flex items-center gap-1 text-xs text-muted-foreground">{v.format==='Video'?<Video className="size-3"/>:<ImageIcon className="size-3"/>}{v.format} · {v.ratio} · {a.channel}</div><div className="flex flex-wrap gap-1"><ReviewPill status={v.review}/>{v.approval==='Auto Approved'&&<Pill tone="info">Auto Approved</Pill>}{a.clientRequired&&!v.clientApproved&&<Pill tone="warning">Client review</Pill>}</div><p className="text-xs text-muted-foreground">{deliverySummary(s,a,v)}</p><div className="flex justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground"><span>{v.by}</span><span>{new Date(v.createdAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span></div>{a.pendingTask&&<p className="text-xs text-info">{a.pendingTask} · In progress</p>}</div></article>;})}</div>:<div className="overflow-x-auto rounded-lg border border-border bg-card"><table className="w-full min-w-[780px] text-left text-xs"><thead className="bg-muted text-muted-foreground"><tr>{['Creative','Source','Format','Review','Delivery','Updated'].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>{list.map(a=>{const v=a.versions.find(v=>v.number===a.current);if(!v)return null;return <tr key={a.id} className="border-t border-border"><td className="p-3"><div className="flex items-center gap-3"><div className="w-14 shrink-0 overflow-hidden rounded"><CreativePreview version={v}/></div><Button variant="link" className="max-w-[220px] whitespace-normal p-0 text-left text-xs" onClick={()=>open(a.id)}>{a.name} · V{v.number}</Button></div></td><td className="p-3">{a.source}</td><td className="p-3">{v.format} · {v.ratio}</td><td className="p-3"><ReviewPill status={v.review}/></td><td className="p-3">{deliverySummary(s,a,v)}</td><td className="p-3">{new Date(v.createdAt).toLocaleDateString()}</td></tr>;})}</tbody></table></div>}
+ {s.briefs.filter(b=>ids.includes(b.clientId)).length>0&&<Section title="Related creative briefs">{s.briefs.filter(b=>ids.includes(b.clientId)).map(b=><div key={b.id} className="border-b border-border py-3 text-sm"><strong>{b.title} · Rev {b.revision}</strong><p className="mt-1 text-xs text-muted-foreground">{b.concepts.join(' · ')} · {b.status}</p></div>)}</Section>}
+ {selected&&<CreativeDetail key={selected.id} asset={selected} initialVersion={search.version} onClose={()=>navigate({search:{}})}/>}{upload&&<UploadAssets open onClose={()=>setUpload(false)}/>}
+ <Dialog open={generate} onOpenChange={setGenerate}><DialogContent className="w-[calc(100%-24px)]"><DialogHeader><DialogTitle>Generate with Creative Agent</DialogTitle><DialogDescription>Simulated generation task using illustrative demo previews, not a live image or video model.</DialogDescription></DialogHeader><label className="text-xs">Client<select aria-label="Generation client" value={genClient} onChange={e=>setGenClient(e.target.value)} className="mt-1 h-9 w-full rounded border border-input bg-background px-2">{s.clients.filter(c=>ids.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><Input aria-label="Creative name" value={genName} onChange={e=>setGenName(e.target.value)}/><Textarea aria-label="Generation prompt" value={prompt} onChange={e=>setPrompt(e.target.value)}/><Button disabled={!genName.trim()||!prompt.trim()} variant="brand" onClick={()=>{const aid=actions.generateCreative(genClient,genName,prompt);setGenerate(false);open(aid);}}><Sparkles/>Start simulated generation</Button></DialogContent></Dialog>
+ <Dialog open={policy} onOpenChange={setPolicy}><DialogContent className="w-[calc(100%-24px)]"><DialogHeader><DialogTitle>Creative Auto-approval Rules</DialogTitle><DialogDescription>Deterministic prototype policy checks, not a production compliance engine.</DialogDescription></DialogHeader><div className="flex items-center justify-between gap-4"><div><h3 className="text-sm font-semibold">Approved-source technical format adaptation</h3><p className="mt-1 text-xs text-muted-foreground">Aspect-ratio padding only. No copy, claim or visual content changes.</p></div><Switch aria-label="Enable technical auto approval" checked={s.creativePolicy.enabled} disabled={s.role!=='admin'} onCheckedChange={actions.setCreativePolicy}/></div><ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground"><li>Source version must already be approved.</li><li>File and placement requirements must pass.</li><li>No outstanding mandatory client approval.</li><li>No warning or unresolved required check.</li><li>Uncertain eligibility always goes to a human.</li><li>Never launches a campaign or grants client approval.</li></ul><p className="text-xs text-muted-foreground">Policy v{s.creativePolicy.version} · {s.creativePolicy.enabledBy??'Not authorized'} · Admin configuration only</p></DialogContent></Dialog>
+ </div>;
 }

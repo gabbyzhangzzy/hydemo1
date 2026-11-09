@@ -213,7 +213,7 @@ export function DemoControls({ onChecks, onScenario, compact }: { onChecks: () =
           <Button size="icon" variant="ghost" className="text-ai-panel-muted hover:bg-ai-panel-elevated hover:text-brand" aria-label="Prototype Demo Controls" title="Prototype Demo Controls"><FlaskConical /></Button>
         ) : (
           <Button size="sm" variant="outline" className="border-dashed border-brand/50 text-brand">
-            <FlaskConical /> Prototype Demo Controls
+            <FlaskConical /> <span className="hidden sm:inline">Prototype Demo Controls</span><span className="sr-only sm:hidden">Prototype Demo Controls</span>
           </Button>
         )}
       </PopoverTrigger>

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Demo, Empty, Phase, Pill, Section, money } from "@/components/demo/bits";
-import { actions, CREATIVES, REPORT_METRICS, STATUS_FLOW, STATUS_LABEL, useDemo } from "@/lib/demo/store";
+import { actions, REPORT_METRICS, STATUS_FLOW, STATUS_LABEL, useDemo } from "@/lib/demo/store";
+import { CreativePreview } from "@/components/demo/creative/preview";
 import { pageHead } from "@/lib/demo/head";
 
 export const Route = createFileRoute("/_shell/portal")({
@@ -74,9 +75,7 @@ function Portal() {
 
       <Section title="Approved creatives">
         <div className="grid gap-2 sm:grid-cols-3">
-          {CREATIVES.filter((a) => a.clientId === "freebeat" && a.status === "Approved").map((a) => (
-            <div key={a.id} className="rounded-lg border border-border p-3 text-sm"><div className="font-medium">{a.name}</div><div className="text-xs text-muted-foreground">{a.kind}</div></div>
-          ))}
+          {s.creativeAssets.filter(a=>a.clientId==="freebeat").flatMap(a=>a.versions.filter(v=>v.shared&&v.review==="Approved").map(v=><div key={`${a.id}-${v.number}`} className="overflow-hidden rounded-lg border border-border text-sm"><CreativePreview version={v}/><div className="space-y-2 p-3"><div className="font-medium">{a.name} · V{v.number}</div><div className="text-xs text-muted-foreground">{v.format} · {v.ratio} · Illustrative demo preview</div>{a.clientRequired&&<><Pill tone={v.clientApproved?'success':'warning'}>{v.clientApproved?'Client approved':'Awaiting your approval'}</Pill><Button size="sm" disabled={s.role!=="client"||v.clientApproved} onClick={()=>actions.clientApproveCreative(a.id,v.number)}>Approve selected version</Button></>}</div></div>))}
           {s.briefs.filter((b) => b.clientId === "freebeat" && b.status === "shared").map((b) => (
             <div key={b.id} className="rounded-lg border border-border p-3 text-sm"><div className="font-medium">{b.title}</div><div className="text-xs text-muted-foreground">Creative brief · Rev {b.revision} · {b.concepts.join(", ")}</div></div>
           ))}
