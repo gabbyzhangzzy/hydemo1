@@ -247,7 +247,7 @@ export function LaunchPanel() {
   const next = STATUS_FLOW[idx + 1] ?? "live_verified";
   return (
     <div className="space-y-4">
-      <ol className="grid grid-cols-4 gap-2 md:grid-cols-8">
+      <ol className="grid grid-cols-4 gap-x-2 gap-y-3">
         {STATUS_FLOW.map((st, i) => (
           <li key={st} className="flex flex-col gap-1.5">
             <div className={cn("h-1.5 rounded-full", i < idx ? "bg-success" : i === idx ? (st === "live_verified" ? "bg-success" : "bg-brand") : "bg-border")} />

@@ -28,3 +28,8 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Prototype architecture
+- All demo data and state transitions live in `src/lib/demo/store.ts` (one client store persisted to localStorage); screens only call `actions.*`, so every page, Slack and Mobile preview stay consistent.
+- The main task's status is derived from campaign/access state (`mainTaskView`) rather than stored, so it can never disagree across screens.
+- App pages live under the pathless `_shell` layout; `/` (onboarding) renders outside it.
