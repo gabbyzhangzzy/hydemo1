@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { seedCreatives, seedUsage, makeVersion, CREATIVE_PREVIEWS } from "./creative-seed";
 import { canReview, effectiveApproval, policyChecks, POLICY_NAME, type CreativeAsset, type CreativeVersion, type CreativeUsage, type CreativePolicy, type ReviewStatus } from "./creative-model";
+import { campaignById } from "./analytics-data";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -645,6 +646,21 @@ function approveInternal(s: State) {
 /* ------------------------------------------------------------------ */
 /* Actions                                                             */
 /* ------------------------------------------------------------------ */
+function creativeCampaignClient(cid:string) { return campaignById(cid)?.clientId; }
+function completeCreativeTask(s:State,t:Task) {
+  if(!t.creativeId)return;
+  const a=s.creativeAssets.find(a=>a.id===t.creativeId);const source=a?.versions.find(v=>v.number===t.creativeVersion);if(!a||!source)return;
+  let vn=source.number;
+  if(t.creativeKind==="revision") {
+    const v=makeVersion(source.preview,Math.max(...a.versions.map(v=>v.number))+1);
+    v.format=source.format;v.ratio=source.ratio;v.by="Creative Agent";v.createdAt=new Date().toISOString();v.sourceVersion=source.number;v.material=true;v.change=t.creativeReason||"Revised opening (simulated)";
+    if(source.mediaKey)v.mediaKey=source.mediaKey;
+    v.audit.push({at:v.createdAt,actor:"Creative Agent",action:`New material revision from V${source.number}; prior approval not inherited. Illustrative preview reused.`});a.versions.push(v);a.current=v.number;vn=v.number;
+  }
+  delete a.pendingTask;
+  t.result=t.creativeKind==="analysis"?"Analysis ready. Review linked Analytics ad metrics; test a fresh opening without changing deployed versions (simulated).":`V${vn} ready for human review (simulated).`;
+  s.messages.push({id:id(s,"M"),clientId:a.clientId,from:t.creativeKind==="analysis"?"ua":"creative",text:`${a.name}: ${t.result} @David`,at:now(),taskId:t.id,creativeId:a.id,creativeVersion:vn});notify(s,`${a.name}: ${t.result}`,"/creative");
+}
 export const actions = {
   importCreative(asset: CreativeAsset) {
     update(s => { if (!can.editDraft(s.role)) return; s.creativeAssets.unshift(asset); notify(s, `${asset.name} imported locally as Draft.`, "/creative"); });
