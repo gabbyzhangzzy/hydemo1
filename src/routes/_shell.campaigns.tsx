@@ -8,7 +8,7 @@ import { CAMPAIGNS } from "@/lib/demo/analytics-data";
 import { CreativePreview } from "@/components/demo/creative/preview";
 
 export const Route = createFileRoute("/_shell/campaigns")({
-  validateSearch: (s: Record<string, unknown>): { campaign?: string } => typeof s.campaign === "string" ? { campaign: s.campaign } : {},
+  validateSearch: (s: Record<string, unknown>): { campaign?: string } => typeof s['campaign'] === "string" ? { campaign: s['campaign'] } : {},
   head: () => pageHead("Campaigns", "Campaign proposals, revisions, approvals and verified launch status."),
   component: Campaigns,
 });
