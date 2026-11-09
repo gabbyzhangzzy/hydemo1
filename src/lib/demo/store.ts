@@ -1044,6 +1044,7 @@ export const actions = {
       const cid = "CASE-2041";
       s.cases.unshift({ id: cid, clientId: "freebeat", type: "Meta Page Authorization", owner: ownerFor("Meta Page Authorization"), taskId: MAIN_TASK_ID, status: "Open", updated: now(), diagnostics: ["Ad account act_DEMO_88231 assigned to BlueFocus BM", "Facebook Page “Freebeat” not shared with BlueFocus Business Manager", "Required permission: ADVERTISE on Page", "Customer conversation: summarized only (private messages not shared)", "Credentials: never stored in case"], notes: [] });
       s.pageAccess = "pending_support";
+      if (s.campaign) logActivity(s, { campaignId: s.campaign.id, actor: "Hellyeah Ops", kind: "Ops", action: `Support case ${cid} created — Meta Page authorization`, outcome: "Launch blocked pending verification", simulated: true });
       const t = s.tasks.find((x) => x.id === MAIN_TASK_ID);
       if (t) t.caseId = cid;
       check(s, "c7");
@@ -1081,6 +1082,7 @@ export const actions = {
       }
       c.recheck = `${now()} · Recheck passed: ADVERTISE permission confirmed (simulated).`;
       s.pageAccess = "connected";
+      if (s.campaign) logActivity(s, { campaignId: s.campaign.id, actor: "Hellyeah Ops", kind: "Ops", action: "Blocker resolved and verified — Meta Page access connected", outcome: "Readiness check now passes", simulated: true });
       check(s, "c10");
       say(s, "clayton", "Good news — Meta Page access is verified. You can resume T-1024 and continue to approval.", "resume");
       notify(s, "Meta Page access verified. T-1024 can resume.", "/workspace");
