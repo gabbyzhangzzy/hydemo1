@@ -64,6 +64,9 @@ function Portal() {
           {CREATIVES.filter((a) => a.clientId === "freebeat" && a.status === "Approved").map((a) => (
             <div key={a.id} className="rounded-lg border border-border p-3 text-sm"><div className="font-medium">{a.name}</div><div className="text-xs text-muted-foreground">{a.kind}</div></div>
           ))}
+          {s.briefs.filter((b) => b.clientId === "freebeat" && b.status === "shared").map((b) => (
+            <div key={b.id} className="rounded-lg border border-border p-3 text-sm"><div className="font-medium">{b.title}</div><div className="text-xs text-muted-foreground">Creative brief · Rev {b.revision} · {b.concepts.join(", ")}</div></div>
+          ))}
         </div>
       </Section>
 

@@ -33,6 +33,25 @@ function Creative() {
           ))}
         </div>
       )}
+      {briefs.length > 0 && (
+        <Section title="Creative briefs" right={<Demo />}>
+          <div className="space-y-3">
+            {briefs.map((b) => (
+              <div key={b.id} className="rounded-xl border border-border p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><span className="font-mono text-[11px] text-muted-foreground">{b.id}</span> <span className="font-semibold">{b.title}</span></div>
+                  <div className="flex gap-1.5">
+                    <Pill tone="info">Revision {b.revision}</Pill>
+                    <Pill tone={b.status === "shared" ? "success" : b.status === "approved_internal" ? "primary" : "muted"}>{b.status === "shared" ? "Shared with client" : b.status === "approved_internal" ? "Approved internally" : "Internal draft"}</Pill>
+                  </div>
+                </div>
+                <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-sm">{b.concepts.map((c) => <li key={c}>{c}</li>)}</ol>
+                <p className="mt-2 text-xs text-muted-foreground">{b.note} · Linked task {b.taskId}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
     </div>
   );
 }
