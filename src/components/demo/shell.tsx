@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { actions, hydrateDemo, mainTaskView, STATUS_LABEL, USERS, useDemo, type Role } from "@/lib/demo/store";
+import { actions, hydrateDemo, mainTaskView, personFor, STATUS_LABEL, USERS, useDemo, type Role } from "@/lib/demo/store";
 import { cn } from "@/lib/utils";
 import { Pill, TaskPill } from "./bits";
 
@@ -41,6 +41,10 @@ export const CHECKS: [string, string][] = [
   ["c16", "End Client cannot see internal drafts or Agent collaboration"],
   ["c17", "Agent Tasks are visible across the relevant Web screens"],
   ["c18", "Slack and Mobile previews reflect shared Task status"],
+  ["c19", "@mentioning Clayton in the shared channel creates a shared Task"],
+  ["c20", "Specialist agents reply under their own identity"],
+  ["c21", "Human-to-human @mention notifies without creating an AI task"],
+  ["c22", "Internal approval is separate from sharing with the End Client"],
 ];
 
 function TaskRunner() {
@@ -311,7 +315,7 @@ export function ChecksDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Scenario checklist · {s.checks.length}/18</DialogTitle>
+          <DialogTitle>Scenario checklist · {s.checks.length}/22</DialogTitle>
           <DialogDescription>Items tick automatically when you exercise them in the prototype.</DialogDescription>
         </DialogHeader>
         <ol className="space-y-1.5">
@@ -364,7 +368,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const [checks, setChecks] = useState(false);
   const [scenario, setScenario] = useState(false);
-  const u = USERS[s.role];
+  const p = personFor(s);
+  const u = p ? { name: p.full, title: p.title, initials: p.initials } : USERS[s.role];
   const openPreview = (fn: (b: boolean) => void) => {
     fn(true);
     if (s.tasks.some((t) => t.id === "T-1024")) actions.markCheck("c18");

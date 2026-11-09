@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Demo, Empty, PageHeader, Phase, Pill } from "@/components/demo/bits";
+import { Demo, Empty, PageHeader, Phase, Pill, Section } from "@/components/demo/bits";
 import { CREATIVES, useDemo } from "@/lib/demo/store";
 import { pageHead } from "@/lib/demo/head";
 
@@ -15,8 +15,9 @@ function Creative() {
   const s = useDemo();
   const ids = s.biz === "direct" ? ["direct"] : s.clientId === "all" ? s.clients.map((c) => c.id) : [s.clientId];
   const list = CREATIVES.filter((a) => ids.includes(a.clientId));
+  const briefs = s.briefs.filter((b) => ids.includes(b.clientId));
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader eyebrow="Marketing" title="Creative" sub={`Capability: ${s.creativeLevel === "limited" ? "approved existing assets only" : "enabled"}`} right={<><Demo /><Button variant="outline" onClick={() => toast("Bulk generation not enabled", { description: "P1 — requires Creative capability upgrade by Ops." })}>Generate new <Phase p="P1" /></Button></>} />
       {list.length === 0 ? <Empty title="No assets for this client" /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -31,6 +32,25 @@ function Creative() {
             </div>
           ))}
         </div>
+      )}
+      {briefs.length > 0 && (
+        <Section title="Creative briefs" right={<Demo />}>
+          <div className="space-y-3">
+            {briefs.map((b) => (
+              <div key={b.id} className="rounded-xl border border-border p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><span className="font-mono text-[11px] text-muted-foreground">{b.id}</span> <span className="font-semibold">{b.title}</span></div>
+                  <div className="flex gap-1.5">
+                    <Pill tone="info">Revision {b.revision}</Pill>
+                    <Pill tone={b.status === "shared" ? "success" : b.status === "approved_internal" ? "primary" : "muted"}>{b.status === "shared" ? "Shared with client" : b.status === "approved_internal" ? "Approved internally" : "Internal draft"}</Pill>
+                  </div>
+                </div>
+                <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-sm">{b.concepts.map((c) => <li key={c}>{c}</li>)}</ol>
+                <p className="mt-2 text-xs text-muted-foreground">{b.note} · Linked task {b.taskId}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
       )}
     </div>
   );
