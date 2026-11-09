@@ -183,6 +183,12 @@ export interface State {
     objective: string;
     channel: string;
   };
+  /** Simulated SSO identity — demo only, never a real external account. */
+  identity: { name: string; email: string; provider: "google" | "microsoft" | "email" } | null;
+  /** Acquisition context preserved from the marketing homepage through sign-in and onboarding. */
+  acquisition: { customerType?: "own" | "agency" | undefined; source?: string | undefined } | null;
+  /** Simulated team invitations (no real emails are sent). */
+  invites: { id: string; email: string; fn: string; clientId: string; status: "pending" | "accepted" }[];
   clients: Client[];
   brands: Record<string, Brand>;
   pageAccess: PageAccess;
@@ -381,6 +387,9 @@ function baseState(accessPath: AccessPath): State {
       objective: "Awareness",
       channel: "Meta Ads",
     },
+    identity: null,
+    acquisition: null,
+    invites: [],
     clients: [
       { id: "freebeat", name: "Freebeat", biz: "bluefocus", industry: "Music & creator app", tagline: "AI music videos" },
       { id: "clientb", name: "Demo Client B", biz: "bluefocus", industry: "Skincare e-commerce", tagline: "DTC skincare" },
@@ -458,6 +467,9 @@ export function hydrateDemo() {
         state.drafts ??= seedDrafts();
         state.activity ??= [];
         state.pendingPrompt ??= null;
+        state.identity ??= null;
+        state.acquisition ??= null;
+        state.invites ??= [];
         emit();
       }
     }
@@ -843,6 +855,48 @@ export const actions = {
   },
   onboarding(patch: Partial<State["onboarding"]>) {
     update((s) => Object.assign(s.onboarding, patch));
+  },
+  /** Simulated sign-in: creates/reuses a local demo identity. No real OAuth, passwords or OTPs. */
+  signIn(provider: "google" | "microsoft" | "email", email?: string) {
+    update((s) => {
+      const e = email?.trim() || "sarah@bluefocus.agency";
+      const name = e
+        .split("@")[0]!
+        .replace(/[._-]+/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      s.identity = { name, email: e, provider };
+    });
+  },
+  signOut() {
+    update((s) => {
+      s.identity = null;
+    });
+  },
+  /** Preserve acquisition context (e.g. homepage CTA preselected customer type) across sign-in → onboarding. */
+  setAcquisition(a: { customerType?: "own" | "agency" | undefined; source?: string | undefined } | null) {
+    update((s) => {
+      s.acquisition = a;
+    });
+  },
+  /** Simulate team invitations — no real emails are sent. Invites are scoped to a client workspace. */
+  addInvites(list: { email: string; fn: string; clientId: string }[]) {
+    update((s) => {
+      let added = 0;
+      for (const inv of list) {
+        const email = inv.email.trim();
+        if (!email || !email.includes("@")) continue;
+        if (s.invites.some((x) => x.email === email && x.clientId === inv.clientId)) continue;
+        s.invites.push({ id: id(s, "INV"), email, fn: inv.fn, clientId: inv.clientId, status: "pending" });
+        added += 1;
+      }
+      if (added) notify(s, `${added} teammate invitation${added > 1 ? "s" : ""} sent (simulated — no real emails).`, "/team");
+    });
+  },
+  acceptInvite(inviteId: string) {
+    update((s) => {
+      const inv = s.invites.find((x) => x.id === inviteId);
+      if (inv) inv.status = "accepted";
+    });
   },
   setBrand(cid: string, b: Brand) {
     update((s) => {
