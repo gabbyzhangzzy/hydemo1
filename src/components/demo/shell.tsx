@@ -15,8 +15,7 @@ import { Pill, TaskPill } from "./bits";
 
 type NavItem = { to: string; label: string; icon: typeof Home };
 const NAV: { group: string; items: NavItem[] }[] = [
-  { group: "Home", items: [{ to: "/overview", label: "Overview", icon: Home }] },
-  { group: "Marketing", items: [{ to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }, { to: "/analytics", label: "Analytics", icon: BarChart3 }] },
+  { group: "Marketing", items: [{ to: "/analytics", label: "Analytics", icon: BarChart3 }, { to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }] },
   { group: "Business", items: [{ to: "/brand", label: "Brand & Tracking", icon: Palette }, { to: "/wallet", label: "Accounts & Wallet", icon: Wallet }] },
   { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }] },
 ];
@@ -137,17 +136,14 @@ function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: (() => void) |
       : s.biz === "direct"
         ? [
             // Direct Customer: one AI AM, no multi-agent directory or agency workflows.
-            { group: "Home", items: [{ to: "/workspace", label: "Ask AI AM", icon: MessageSquare }, { to: "/overview", label: "Overview", icon: Home }] },
-            { group: "Marketing", items: [{ to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }, { to: "/analytics", label: "Analytics", icon: BarChart3 }] },
+            { group: "AI Workspace", items: [{ to: "/workspace", label: "Ask AI AM", icon: MessageSquare }] },
+            { group: "Marketing", items: [{ to: "/analytics", label: "Analytics", icon: BarChart3 }, { to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }] },
             { group: "Business", items: [{ to: "/brand", label: "Brand & Tracking", icon: Palette }, { to: "/wallet", label: "Accounts & Wallet", icon: Wallet }] },
             { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }] },
           ]
         : [
-          ...NAV.flatMap((g) =>
-            g.group === "Home"
-              ? [g, { group: "AI Workspace", items: [{ to: "/workspace", label: "Agent Workspace", icon: MessageSquare }] }]
-              : [g],
-          ),
+          { group: "AI Workspace", items: [{ to: "/workspace", label: "Agent Workspace", icon: MessageSquare }] },
+          ...NAV,
           ...(s.role === "ops" ? [{ group: "Hellyeah Internal", items: [{ to: "/ops", label: "Ops Queue", icon: Headset }] }] : []),
         ];
   const openCases = s.cases.filter((c) => c.status !== "Closed" && c.status !== "Resolved").length;
