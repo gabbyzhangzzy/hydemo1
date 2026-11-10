@@ -687,7 +687,8 @@ function ComposerInner({ s, cid, prefill }: { s: State; cid: string; prefill: bo
   useEffect(() => {
     if (pending) actions.consumePendingPrompt();
   }, [pending]);
-  return <ComposerWithPrefill key={captured ?? "default"} s={s} cid={cid} initial={captured ?? (prefill ? "@UA Agent " : "")} />;
+  const direct = s.biz === "direct" || cid === "direct";
+  return <ComposerWithPrefill key={captured ?? "default"} s={s} cid={cid} initial={captured ?? (prefill && !direct ? "@UA Agent " : "")} />;
 }
 
 function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initial: string }) {
@@ -695,9 +696,11 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
   const [mentionQ, setMentionQ] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const disabled = s.role === "ops";
+  const direct = s.biz === "direct" || cid === "direct";
 
   const onChange = (v: string) => {
     setInput(v);
+    if (direct) { setMentionQ(null); return; } // Direct Customers never mention specialist agents
     const m = v.slice(0, taRef.current?.selectionStart ?? v.length).match(/@([\w ]*)$/);
     setMentionQ(m ? (m[1] ?? "") : null);
   };
@@ -736,7 +739,7 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
           rows={1}
           value={input}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={disabled ? "Ops can view; messaging as agency user disabled" : `Message #${channelName(s, cid)} — type @ to mention`}
+          placeholder={disabled ? "Ops can view; messaging as agency user disabled" : direct ? "Ask your AI AM anything about your marketing…" : `Message #${channelName(s, cid)} — type @ to mention`}
           disabled={disabled}
           className="min-h-10 resize-none border-0 bg-transparent text-ai-panel-foreground shadow-none placeholder:text-ai-panel-muted focus-visible:ring-0"
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } if (e.key === "Escape") setMentionQ(null); }}
