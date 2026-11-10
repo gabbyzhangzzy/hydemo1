@@ -47,15 +47,22 @@ function CampaignDetailPage() {
   const budget = proposal ? `$${proposal.dailyBudget}/day · cap $${proposal.totalCap.toLocaleString()}` : `$${meta!.dailyBudget}/day`;
   const isMain = proposal && s.campaign?.id === proposal.id;
 
+  const direct = clientId === "direct";
   const askAgent = (agent: "UA Agent" | "Creative Agent" | "Clayton", kind: string) => {
-    const prompts: Record<string, string> = {
+    const prompts: Record<string, string> = direct ? {
+      investigate: `Investigate my campaign “${name}” (${campaignId}, ${channel}). Diagnose delivery and performance, and recommend next steps. Do not change budgets, targeting or creatives without approval.`,
+      readiness: `Check launch readiness for “${name}” (${campaignId}). Summarize missing requirements and next steps.`,
+      brief: `Prepare a creative brief for “${name}” (${campaignId}, ${objective}). Use approved brand assets only; new creative follows the normal review and approval flow.`,
+      report: `Generate a performance review for “${name}” (${campaignId}) for the current date range.`,
+    } : {
       investigate: `@UA Agent — investigate campaign “${name}” (${campaignId}, ${channel}). Diagnose delivery and performance, and recommend next steps. Do not change budgets, targeting or creatives without approval.`,
       readiness: `@Clayton — check launch readiness for “${name}” (${campaignId}). Summarize missing requirements and next steps.`,
       brief: `@Creative Agent — prepare a creative brief for “${name}” (${campaignId}, ${objective}). Use approved brand assets only; new creative follows the normal review and approval flow.`,
       report: `@UA Agent — generate a performance review for “${name}” (${campaignId}) for the current date range. Prepare it as an internal reporting task.`,
     };
-    actions.startGenericTask(clientId, `${kind}: ${name}`.slice(0, 80), agent, prompts[kind] ?? prompts["investigate"]!);
-    toast(`${agent} task created`, { description: `Context for ${campaignId} was passed to the workspace.` });
+    const effAgent = direct ? "AI AM" : agent;
+    actions.startGenericTask(clientId, `${kind}: ${name}`.slice(0, 80), effAgent, prompts[kind] ?? prompts["investigate"]!);
+    toast(`${effAgent} task created`, { description: `Context for ${campaignId} was passed to the workspace.` });
     void navigate({ to: "/workspace" });
   };
 
@@ -82,7 +89,7 @@ function CampaignDetailPage() {
               {proposal && <Pill tone={statusTone(proposal.status)}>{proposal.status === "draft" && proposal.changesRequested ? "Changes Requested" : STATUS_LABEL[proposal.status]}</Pill>}
               {meta && <Pill tone={meta.status === "Active" ? "success" : meta.status === "Paused" ? "warning" : "muted"} dot={meta.status === "Active"}>{meta.status}</Pill>}
               <Button size="sm" variant="outline" onClick={openAnalytics}><BarChart3 /> View Analytics</Button>
-              <Button size="sm" variant="outline" onClick={() => askAgent("UA Agent", "investigate")}><Bot /> Ask UA Agent</Button>
+              <Button size="sm" variant="outline" onClick={() => askAgent("UA Agent", "investigate")}><Bot /> {direct ? "Ask AI AM" : "Ask UA Agent"}</Button>
             </div>
           }
         />
@@ -114,8 +121,8 @@ function CampaignDetailPage() {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => askAgent("Clayton", "readiness")}><ShieldCheck /> Check Launch Readiness</Button>
-                  <Button size="sm" variant="outline" onClick={() => askAgent("Creative Agent", "brief")}><FileText /> Create Creative Brief</Button>
+                  <Button size="sm" variant="outline" onClick={() => askAgent("Clayton", "readiness")}><ShieldCheck /> {direct ? "Ask AI AM to Check Readiness" : "Check Launch Readiness"}</Button>
+                  <Button size="sm" variant="outline" onClick={() => askAgent("Creative Agent", "brief")}><FileText /> {direct ? "Ask AI AM for Creative Ideas" : "Create Creative Brief"}</Button>
                 </div>
               </div>
               <Section title="Account readiness">{isMain ? <ReadinessPanel /> : <p className="text-sm text-muted-foreground">Readiness checks (brand, account, authorization, funding, creative) run on the primary launch flow. This proposal must be approved before preflight.</p>}</Section>
@@ -131,9 +138,11 @@ function CampaignDetailPage() {
             <StructureTab meta={meta} ids={ids} onOpenAd={(adId) => setAdSel(adId)} onAsk={(ad) => {
               const rows = filteredRows(ids, { ...f, campaignId: meta.id });
               const a = adBreakdown(meta.id, rows).find((x) => x.ad.id === ad.id);
-              actions.startGenericTask(meta.clientId, `Ad analysis: ${ad.name}`.slice(0, 80), "UA Agent",
-                `@UA Agent — analyze ad “${ad.name}” (${ad.id}) in ad set “${ad.adset}” of “${meta.name}”.${a ? ` Spend ${fmtMoney(a.spend)}, CTR ${a.ctr.toFixed(2)}%, CPM ${fmtMoney(a.cpm)}.` : ""} Recommend next steps; do not change anything without approval.`);
-              toast("UA Agent task created", { description: `Context for ${ad.id} was passed to the workspace.` });
+              actions.startGenericTask(meta.clientId, `Ad analysis: ${ad.name}`.slice(0, 80), direct ? "AI AM" : "UA Agent",
+                direct
+                  ? `Analyze ad “${ad.name}” (${ad.id}) in ad set “${ad.adset}” of “${meta.name}”.${a ? ` Spend ${fmtMoney(a.spend)}, CTR ${a.ctr.toFixed(2)}%, CPM ${fmtMoney(a.cpm)}.` : ""} Recommend next steps; do not change anything without approval.`
+                  : `@UA Agent — analyze ad “${ad.name}” (${ad.id}) in ad set “${ad.adset}” of “${meta.name}”.${a ? ` Spend ${fmtMoney(a.spend)}, CTR ${a.ctr.toFixed(2)}%, CPM ${fmtMoney(a.cpm)}.` : ""} Recommend next steps; do not change anything without approval.`);
+              toast(direct ? "AI AM task created" : "UA Agent task created", { description: `Context for ${ad.id} was passed to the workspace.` });
               void navigate({ to: "/workspace" });
             }} />
           ) : (
