@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, Bot, MessageSquare } from "lucide-react";
+import { AlertTriangle, Bot, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Empty, PageHeader, Phase, Pill, Section, Stat, TaskPill } from "@/components/demo/bits";
 import { statusTone } from "@/components/demo/campaign";
