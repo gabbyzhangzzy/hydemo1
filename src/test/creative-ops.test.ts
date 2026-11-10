@@ -73,16 +73,12 @@ describe("Creative Requests — brief, production, QA and delivery", () => {
     const failed = getDemo().productionJobs.find((j) => j.requestId === r.id && j.status === "Failed")!;
     actions.retryProductionJob(failed.id); finishJobs(r.id);
     // fix slot 3 duration via a new version, then approve all outputs
-    let s = getDemo();
+    const s = getDemo();
     const ids = latestJobs(s, req(r.id)).map((j) => j.outputAssetId!);
     const a3 = s.creativeAssets.find((a) => a.id === latestJobs(s, req(r.id)).find((j) => j.slot === 3)!.outputAssetId)!;
     a3.versions[0]!.duration = 15; // simulated trimmed re-export (mutating test copy of state is enough for derivation)
     for (const aid of ids) actions.creativeReview(aid, 1, "Approved");
-    s = getDemo();
-    if (deliveryBlockers(s, req(r.id)).some((b) => b.includes("QA"))) {
-      expect(requestStatus(s, req(r.id))).toBe("Delivery Blocked");
-      return;
-    }
+    expect(deliveryBlockers(getDemo(), req(r.id))).toEqual([]);
     actions.deliverCreativeRequest(r.id);
     expect(req(r.id).deliveredAt).toBeDefined();
   });
