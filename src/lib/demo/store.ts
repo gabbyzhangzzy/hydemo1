@@ -2,6 +2,8 @@ import { useSyncExternalStore } from "react";
 import { seedCreatives, seedUsage, makeVersion, CREATIVE_PREVIEWS } from "./creative-seed";
 import { canReview, effectiveApproval, policyChecks, POLICY_NAME, type CreativeAsset, type CreativeVersion, type CreativeUsage, type CreativePolicy, type ReviewStatus } from "./creative-model";
 import { campaignById } from "./analytics-data";
+import * as ops from "./creative-ops";
+import type { CreativeRequest, ProductionJob, DriveState, CreativeBrief, DriveResult } from "./creative-ops";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -127,6 +129,7 @@ export interface Msg {
   taskId?: string | undefined;
   creativeId?: string;
   creativeVersion?: number;
+  requestId?: string;
 }
 export interface Brief {
   id: string;
@@ -166,6 +169,9 @@ export interface State {
   creativeAssets: CreativeAsset[];
   creativeUsage: CreativeUsage[];
   creativePolicy: CreativePolicy;
+  creativeRequests: CreativeRequest[];
+  productionJobs: ProductionJob[];
+  drive: DriveState;
   accessPath: AccessPath;
   role: Role;
   biz: Biz;
@@ -377,8 +383,9 @@ const GENERIC_STAGES = (label: string, agent: string): LogEntry[] => [
 function baseState(accessPath: AccessPath): State {
   const bd = accessPath === "bd";
   return {
-    version: 5,
-    creativeAssets: seedCreatives(),
+    version: 6,
+    ...(() => { const assets = seedCreatives(); const o = ops.seedCreativeOps(assets); return { creativeAssets: assets, creativeRequests: o.requests, productionJobs: o.jobs }; })(),
+    drive: ops.seedDrive(),
     creativeUsage: seedUsage(),
     creativePolicy: { enabled: false, version: 1, enabledBy: null },
     accessPath,
@@ -471,6 +478,8 @@ export function hydrateDemo() {
       if (parsed.version === serverState.version) {
         state = parsed;
         state.creativeAssets ??= seedCreatives();
+        if (!state.creativeRequests || !state.productionJobs) { const o = ops.seedCreativeOps(state.creativeAssets); state.creativeRequests = o.requests; state.productionJobs = o.jobs; }
+        state.drive ??= ops.seedDrive();
         state.creativeUsage ??= seedUsage();
         state.creativePolicy ??= { enabled: false, version: 1, enabledBy: null };
         state.drafts ??= seedDrafts();
@@ -746,7 +755,116 @@ function completeCreativeTask(s:State,t:Task) {
   const direct=a.clientId==="direct";
   s.messages.push({id:id(s,"M"),clientId:a.clientId,from:direct?"aiam":t.creativeKind==="analysis"?"ua":"creative",text:`${a.name}: ${t.result}${direct?"":" @David"}`,at:now(),taskId:t.id,creativeId:a.id,creativeVersion:vn});notify(s,`${a.name}: ${t.result}`,"/creative");
 }
+function reqAct(rid: string, fn: (s: State, r: CreativeRequest) => void) {
+  update((s) => { const r = s.creativeRequests.find((x) => x.id === rid); if (!r || !can.editDraft(s.role)) return; fn(s, r); ops.syncTask(s, r); });
+}
+function requestOwner(s: State, clientId: string) { return clientId === "direct" || s.biz === "direct" ? "AI AM" : "Creative Agent"; }
+/** Create a Creative Request (+ linked Agent Task) — shared by Creative page, Workspace and Campaign entry points. */
+function newRequest(s: State, clientId: string, text: string, source: CreativeRequest["source"], extra: { name?: string; campaignId?: string; prefill?: Partial<CreativeBrief>; scenario?: boolean } = {}) {
+  const owner = requestOwner(s, clientId);
+  const r = ops.createRequest(s, { clientId, text, actor: actorName(s), owner, source, ...extra });
+  const tid = id(s, "T");
+  s.tasks.unshift({ id: tid, clientId, title: `Creative request ${r.id}: ${r.name}`.slice(0, 80), agent: owner, status: "waiting_approval", stage: 0, stages: GENERIC_STAGES(r.name, owner), createdAt: now() });
+  r.taskId = tid;
+  ops.syncTask(s, r);
+  notify(s, `${r.id} created — ${ops.requestStatus(s, r)}`, `/creative/requests/${r.id}`);
+  return r;
+}
+function scheduleJobs(rid: string) {
+  if (typeof window === "undefined") return;
+  window.setTimeout(() => actions.advanceProduction(rid), 1200);
+  window.setTimeout(() => actions.advanceProduction(rid), 2600);
+}
 export const actions = {
+  createCreativeRequest(clientId: string, text: string, opts: { name?: string; campaignId?: string; prefill?: Partial<CreativeBrief>; source?: CreativeRequest["source"] } = {}): string | null {
+    let rid: string | null = null;
+    update((s) => {
+      if (!can.editDraft(s.role) || !text.trim()) return;
+      if (s.biz === "direct" ? clientId !== "direct" : !s.clients.some((c) => c.id === clientId && c.biz === s.biz)) return;
+      const { source, ...extra } = opts;
+      rid = newRequest(s, clientId, text.trim(), source ?? "Creative page", extra).id;
+    });
+    return rid;
+  },
+  answerCreativeIntake(rid: string, text: string) { reqAct(rid, (s, r) => ops.answerIntake(s, r, actorName(s), text)); },
+  updateCreativeBrief(rid: string, patch: Partial<CreativeBrief>, name?: string) {
+    reqAct(rid, (s, r) => { if (r.submitted) return; ops.mergeBrief(r.brief, patch); if (name?.trim()) r.name = name.trim(); r.confirmed = false; ops.logReq(r, actorName(s), "Human", "Brief edited"); });
+  },
+  toggleCreativeReference(rid: string, aid: string, as: "references" | "reused") {
+    reqAct(rid, (s, r) => {
+      if (r.submitted) return;
+      const a = s.creativeAssets.find((x) => x.id === aid && x.clientId === r.clientId);
+      if (!a) return;
+      if (as === "reused" && a.versions.find((v) => v.number === a.current)?.review !== "Approved") return;
+      const list = r[as];
+      const i = list.indexOf(aid);
+      if (i >= 0) list.splice(i, 1); else list.push(aid);
+      if (as === "reused" && r.reused.length > (r.brief.quantity ?? 0)) r.reused.pop();
+      r.confirmed = false;
+      ops.logReq(r, actorName(s), "Human", `${i >= 0 ? "Removed" : "Added"} ${aid} as ${as === "reused" ? "reused deliverable" : "reference"}`);
+    });
+  },
+  confirmCreativeBrief(rid: string) {
+    reqAct(rid, (s, r) => { if (ops.missingFields(r.brief).length || r.submitted) return; r.confirmed = true; ops.logReq(r, actorName(s), "Human", "Brief confirmed"); });
+  },
+  submitCreativeProduction(rid: string) {
+    let ok = false;
+    reqAct(rid, (s, r) => { ok = ops.produce(s, r, actorName(s)); if (ok) notify(s, `${r.id} submitted for production`, `/creative/requests/${r.id}`); });
+    if (ok) scheduleJobs(rid);
+  },
+  advanceProduction(rid: string) {
+    update((s) => { ops.advanceJobs(s, rid); });
+  },
+  retryProductionJob(jid: string) {
+    let rid: string | undefined;
+    update((s) => { if (!can.editDraft(s.role)) return; rid = s.productionJobs.find((j) => j.id === jid)?.requestId; ops.retryJob(s, jid, actorName(s)); });
+    if (rid) scheduleJobs(rid);
+  },
+  cancelProductionJob(jid: string) {
+    update((s) => { if (!can.editDraft(s.role)) return; ops.cancelJob(s, jid, actorName(s)); });
+  },
+  deliverCreativeRequest(rid: string) {
+    reqAct(rid, (s, r) => {
+      if (ops.deliver(s, r, actorName(s))) {
+        notify(s, `${r.id} delivered`, `/creative/requests/${r.id}`);
+        if (r.clientId !== "direct" || s.biz === "direct") s.messages.push({ id: id(s, "M"), clientId: r.clientId, from: r.clientId === "direct" ? "aiam" : "creative", text: `${r.name}: final deliverables verified and delivered (simulated outputs).`, at: now(), requestId: r.id, ...(r.taskId ? { taskId: r.taskId } : {}) });
+      }
+    });
+  },
+  connectDrive() {
+    update((s) => { if (s.role !== "admin") return; s.drive.connected = true; s.drive.connectedBy = actorName(s); s.drive.connectedAt = new Date().toISOString(); for (const f of s.drive.folders) { if (f.status === "Authorization Required") f.status = f.synced ? "Synced" : "Not synced"; f.accessRevoked = false; } });
+  },
+  disconnectDrive() {
+    update((s) => { if (s.role !== "admin") return; s.drive.connected = false; for (const f of s.drive.folders) if (f.synced) f.status = "Authorization Required"; });
+  },
+  mapDriveFolder(fid: string, clientId: string | null) {
+    update((s) => { if (s.role !== "admin") return; const f = s.drive.folders.find((x) => x.id === fid); if (f && !f.synced) f.clientId = clientId; });
+  },
+  importDriveFiles(fid: string, fileIds: string[], clientId: string): DriveResult {
+    let res: DriveResult = { imported: [], skipped: [], updated: [], failed: [] };
+    update((s) => { res = ops.importDrive(s, fid, fileIds, clientId); if (res.imported.length) notify(s, `${res.imported.length} files imported from Google Drive`, "/creative"); });
+    return res;
+  },
+  syncDriveFolder(fid: string): DriveResult {
+    let res: DriveResult = { imported: [], skipped: [], updated: [], failed: [] };
+    update((s) => { if (!ops.canImportDrive(s)) { res.error = "Your role cannot sync folders."; return; } res = ops.syncFolder(s, fid); });
+    return res;
+  },
+  reviewDriveSourceUpdate(aid: string) { update((s) => ops.reviewSourceUpdate(s, aid)); },
+  /** Demo-only: simulate changes in the (simulated) Drive folder. */
+  simulateDrive(fid: string, kind: "update" | "revoke" | "remove" | "restore") {
+    update((s) => {
+      if (s.role !== "admin") return;
+      const folder = s.drive.folders.find((f) => f.id === fid);
+      if (!folder) return;
+      const files = s.drive.files.filter((f) => f.folderId === fid);
+      const imported = (f: { id: string }) => s.creativeAssets.some((a) => a.drive?.fileId === f.id);
+      if (kind === "revoke") folder.accessRevoked = true;
+      if (kind === "restore") { folder.accessRevoked = false; if (folder.status === "Authorization Required") folder.status = folder.synced ? "Synced" : "Not synced"; }
+      if (kind === "update") { const f = files.find((f) => f.format === "Video" && imported(f) && !f.removed) ?? files.find((f) => imported(f) && !f.removed); if (f) { f.revision += 1; f.modifiedAt = new Date().toISOString(); } }
+      if (kind === "remove") { const f = [...files].reverse().find((f) => f.format === "Image" && imported(f) && !f.removed); if (f) f.removed = true; }
+    });
+  },
   importCreative(asset: CreativeAsset) {
     update(s => { if (!can.editDraft(s.role)) return; s.creativeAssets.unshift(asset); notify(s, `${asset.name} imported locally as Draft.`, "/creative"); });
   },
