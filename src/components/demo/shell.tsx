@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
-  BarChart3, Bell, Bot, Briefcase, Building2, Check, ChevronsUpDown, ClipboardCheck, FlaskConical, Headset, Home, Image as ImageIcon, LayoutGrid, ListChecks, MessageSquare, Palette, PanelLeftClose, PanelLeftOpen, Plus, RotateCcw, Settings2, Slack, Smartphone, Sparkles, Users, Wallet, Workflow,
+  BarChart3, Bell, Briefcase, Building2, Check, ChevronsUpDown, ClipboardCheck, FlaskConical, Headset, Home, Image as ImageIcon, LayoutGrid, ListChecks, MessageSquare, Palette, PanelLeftClose, PanelLeftOpen, Plus, RotateCcw, Slack, Smartphone, Sparkles, Users, Wallet, Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,10 +16,10 @@ import { Pill, TaskPill } from "./bits";
 type NavItem = { to: string; label: string; icon: typeof Home };
 const NAV: { group: string; items: NavItem[] }[] = [
   { group: "Home", items: [{ to: "/overview", label: "Overview", icon: Home }] },
-  { group: "AI Workspace", items: [{ to: "/agents", label: "Agents", icon: Bot }, { to: "/tasks", label: "Tasks", icon: ListChecks }, { to: "/workflows", label: "Workflows", icon: Workflow }] },
+  { group: "AI Workspace", items: [{ to: "/tasks", label: "Tasks", icon: ListChecks }, { to: "/workflows", label: "Workflows", icon: Workflow }] },
   { group: "Marketing", items: [{ to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }, { to: "/analytics", label: "Analytics", icon: BarChart3 }] },
   { group: "Business", items: [{ to: "/brand", label: "Brand & Tracking", icon: Palette }, { to: "/wallet", label: "Accounts & Wallet", icon: Wallet }] },
-  { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }, { to: "/capabilities", label: "Agent Capabilities", icon: Settings2 }] },
+  { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }] },
 ];
 
 export const CHECKS: [string, string][] = [
@@ -141,7 +141,7 @@ function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: (() => void) |
             { group: "Home", items: [{ to: "/workspace", label: "Ask AI AM", icon: MessageSquare }, { to: "/overview", label: "Overview", icon: Home }, { to: "/tasks", label: "Tasks", icon: ListChecks }] },
             { group: "Marketing", items: [{ to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }, { to: "/analytics", label: "Analytics", icon: BarChart3 }] },
             { group: "Business", items: [{ to: "/brand", label: "Brand & Tracking", icon: Palette }, { to: "/wallet", label: "Accounts & Wallet", icon: Wallet }] },
-            { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }, { to: "/capabilities", label: "Capabilities", icon: Settings2 }] },
+            { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }] },
           ]
         : [
           ...NAV.map((g) =>
@@ -150,7 +150,6 @@ function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: (() => void) |
               : g,
           ),
           ...(s.role === "ops" ? [{ group: "Hellyeah Internal", items: [{ to: "/ops", label: "Ops Queue", icon: Headset }] }] : []),
-          ...(s.biz === "bluefocus" ? [{ group: "Preview", items: [{ to: "/portal", label: "Client Portal (P1)", icon: Sparkles }] }] : []),
         ];
   const openCases = s.cases.filter((c) => c.status !== "Closed" && c.status !== "Resolved").length;
   if (rail) {
@@ -478,7 +477,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 export function MobileNav({ className }: { className?: string }) {
   const s = useDemo();
-  const all = s.role === "client" ? [{ to: "/portal", label: "Client Portal" }] : [{ to: "/workspace", label: "Agent Workspace" }, ...NAV.flatMap((g) => g.items), ...(s.role === "ops" ? [{ to: "/ops", label: "Ops Queue" }] : [])];
+  const all = s.role === "client" ? [{ to: "/portal", label: "Client Portal" }] : [{ to: "/workspace", label: s.biz === "direct" ? "Ask AI AM" : "Agent Workspace" }, ...NAV.flatMap((g) => g.items).filter((i) => s.biz !== "direct" || i.to !== "/workflows"), ...(s.role === "ops" ? [{ to: "/ops", label: "Ops Queue" }] : [])];
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className={cn("lg:hidden", className)}>Menu</Button></DropdownMenuTrigger>
