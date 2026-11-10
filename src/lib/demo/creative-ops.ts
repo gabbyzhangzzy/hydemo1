@@ -330,8 +330,8 @@ export function createRequest(
     brief.audience = brand.audience; brief.sellingPoint = brand.description; brief.market = brand.market;
     brief.suggested.push("audience", "sellingPoint", "market");
   }
-  const usual = s.clients.find((c) => c.id === input.clientId) ? (input.clientId === "clientb" ? "Meta" : input.clientId === "direct" ? "Meta" : "Meta") : undefined;
-  if (usual) { brief.platform = usual; brief.suggested.push("platform"); }
+  // Suggested from the client's active channel (all demo clients currently run on Meta).
+  brief.platform = "Meta"; brief.suggested.push("platform");
   const due = new Date(Date.now() + 3 * 86400000).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   brief.deadline = due; brief.suggested.push("deadline");
   mergeBrief(brief, input.prefill ?? {});

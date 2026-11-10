@@ -343,6 +343,10 @@ export function seedDrafts(): Campaign[] {
 }
 
 export const MAIN_TASK_ID = "T-1024";
+const CREATIVE_INTENT = (t: string) =>
+  /\b(prepare|create|make|produce|need|design|generate)\b/i.test(t) &&
+  /\b(concepts?|ads?|videos?|creatives?|images?|statics?|variations?|banners?)\b/i.test(t) &&
+  !/\b(revise|revision|research|analy[sz]e|brief for)\b/i.test(t);
 export const MAIN_PROMPT =
   "@Clayton, can you review Freebeat's Meta performance over the last seven days and prepare recommendations for our next creative batch?";
 
@@ -1075,6 +1079,11 @@ export const actions = {
         const hadSpecialistMention = /@(UA Agent|Creative Agent|Clayton)/i.test(trimmed);
         if (hadSpecialistMention) check(s, "c24");
 
+        if (CREATIVE_INTENT(trimmed)) {
+          const r = newRequest(s, "direct", trimmed.replace(/@(UA Agent|Creative Agent|Clayton)[,:\s—-]*/gi, ""), "Agent Workspace");
+          s.messages.push({ id: id(s, "M"), clientId: "direct", from: "aiam", text: `I've opened creative request ${r.id}. ${r.intake[r.intake.length - 1]?.text ?? ""}`, at: now(), requestId: r.id, ...(r.taskId ? { taskId: r.taskId } : {}) });
+          return;
+        }
         if (/plan a new campaign|new campaign/i.test(trimmed)) {
           const clientName = s.clients.find((c) => c.id === "direct")?.name ?? "your business";
           const open = allProposals(s).find((c) => c.clientId === "direct" && STATUS_FLOW.indexOf(c.status) < STATUS_FLOW.indexOf("submitted"));
@@ -1106,6 +1115,27 @@ export const actions = {
       const from: MsgFrom = p?.id ?? "user";
       const aiMentioned: string[] = mentions.filter((m) => m === "clayton" || m === "ua" || m === "creative");
       const humansMentioned: string[] = mentions.filter((m) => !aiMentioned.includes(m));
+
+      // Creative Request intake: "@Creative Agent, prepare three video concepts…" (also via @Clayton).
+      if (/creative agent/i.test(trimmed)) {
+        const open = s.creativeRequests.find((r) => r.clientId === cid && r.source === "Agent Workspace" && !r.submitted && ops.missingFields(r.brief).length > 0);
+        if (CREATIVE_INTENT(trimmed) || open) {
+          say(s, from, trimmed, undefined, cid, { mentions });
+          let r: CreativeRequest;
+          if (CREATIVE_INTENT(trimmed) || !open) {
+            r = newRequest(s, cid, trimmed.replace(/@(Clayton|Creative Agent)[,:\s—-]*/gi, "").replace(/^ask\s+creative agent\s+to\s+/i, ""), "Agent Workspace", cid === "freebeat" ? { scenario: true } : {});
+          } else {
+            r = open;
+            ops.answerIntake(s, r, actorName(s), trimmed.replace(/@Creative Agent[,:\s—-]*/gi, ""));
+            ops.syncTask(s, r);
+          }
+          const status = ops.requestStatus(s, r);
+          const last = r.intake[r.intake.length - 1]?.text ?? "";
+          s.messages.push({ id: id(s, "M"), clientId: cid, from: "creative", text: status === "Needs Info" ? `Creative request ${r.id} · Needs Info — ${last}` : `Creative request ${r.id} · Brief ready for review. ${last}`, at: now(), requestId: r.id, ...(r.taskId ? { taskId: r.taskId } : {}) });
+          check(s, "c20");
+          return;
+        }
+      }
 
       // Guided scenario hijacks the first generic @Clayton message — but an explicit
       // "plan a new campaign" request goes to the proposal-drafting branch instead.
