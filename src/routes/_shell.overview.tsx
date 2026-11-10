@@ -24,8 +24,8 @@ function Overview() {
     <div className="mx-auto max-w-7xl">
       <PageHeader
         eyebrow={<>Home · <Phase p="P0" /></>}
-        title={s.biz === "direct" ? "Northwind Coffee" : "Good afternoon, BlueFocus"}
-        sub={s.biz === "direct" ? "Your AI AM handles campaigns and creative for you." : "What your AI team and accounts need from you today."}
+        title={s.biz === "direct" ? "Northwind Coffee" : s.clientId === "all" ? "All Clients · Agency portfolio" : "Good afternoon, BlueFocus"}
+        sub={s.biz === "direct" ? "Your AI AM handles campaigns and creative for you." : s.clientId === "all" ? "Aggregated view across your authorized clients, with per-client breakdowns." : "What your AI team and accounts need from you today."}
         right={s.biz === "bluefocus" && (
           <Button variant="brand" asChild onClick={() => actions.setClient("freebeat")}>
             <Link to="/workspace">Open Freebeat Workspace <ArrowRight /></Link>
