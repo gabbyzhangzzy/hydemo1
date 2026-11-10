@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { actions, hydrateDemo, mainTaskView, personFor, STATUS_LABEL, USERS, useDemo, type Role } from "@/lib/demo/store";
+import { actions, directUser, hydrateDemo, mainTaskView, personFor, STATUS_LABEL, USERS, useDemo, type Role } from "@/lib/demo/store";
 import { cn } from "@/lib/utils";
 import { Pill, TaskPill } from "./bits";
 
@@ -45,6 +45,10 @@ export const CHECKS: [string, string][] = [
   ["c20", "Specialist agents reply under their own identity"],
   ["c21", "Human-to-human @mention notifies without creating an AI task"],
   ["c22", "Internal approval is separate from sharing with the End Client"],
+  ["c23", "Direct Customer chats only with one AI Account Manager"],
+  ["c24", "Specialist @mentions in Direct mode route through AI AM"],
+  ["c25", "AI AM drafts a Campaign Proposal for a Direct Customer"],
+  ["c26", "Direct Campaigns/Analytics AI actions route through AI AM"],
 ];
 
 function TaskRunner() {
@@ -131,10 +135,18 @@ function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: (() => void) |
   const items: { group: string; items: NavItem[] }[] =
     s.role === "client"
       ? [{ group: "Client", items: [{ to: "/portal", label: "Client Portal", icon: Sparkles }] }]
-      : [
+      : s.biz === "direct"
+        ? [
+            // Direct Customer: one AI AM, no multi-agent directory or agency workflows.
+            { group: "Home", items: [{ to: "/workspace", label: "Ask AI AM", icon: MessageSquare }, { to: "/overview", label: "Overview", icon: Home }, { to: "/tasks", label: "Tasks", icon: ListChecks }] },
+            { group: "Marketing", items: [{ to: "/campaigns", label: "Campaigns", icon: Briefcase }, { to: "/creative", label: "Creative", icon: ImageIcon }, { to: "/analytics", label: "Analytics", icon: BarChart3 }] },
+            { group: "Business", items: [{ to: "/brand", label: "Brand & Tracking", icon: Palette }, { to: "/wallet", label: "Accounts & Wallet", icon: Wallet }] },
+            { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }, { to: "/capabilities", label: "Capabilities", icon: Settings2 }] },
+          ]
+        : [
           ...NAV.map((g) =>
             g.group === "AI Workspace"
-              ? { ...g, items: [{ to: "/workspace", label: s.biz === "direct" ? "Ask AI AM" : "Agent Workspace", icon: MessageSquare }, ...g.items] }
+              ? { ...g, items: [{ to: "/workspace", label: "Agent Workspace", icon: MessageSquare }, ...g.items] }
               : g,
           ),
           ...(s.role === "ops" ? [{ group: "Hellyeah Internal", items: [{ to: "/ops", label: "Ops Queue", icon: Headset }] }] : []),
@@ -224,10 +236,17 @@ export function DemoControls({ onChecks, onScenario, compact }: { onChecks: () =
           <Seg items={[["self", "Self-serve onboarding"], ["bd", "BD-assisted onboarding"]]} value={s.accessPath} onPick={(v) => { actions.setAccessPath(v as "self" | "bd"); nav({ to: "/" }); }} />
           <div className="mt-1 text-[10px] text-muted-foreground">Switching access path restarts the demo.</div>
         </div>
+        {s.biz === "direct" ? (
+          <div>
+            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">User role</div>
+            <div className="rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground">{directUser(s).name} · {directUser(s).title} — Direct Customers can't impersonate agency members.</div>
+          </div>
+        ) : (
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">User role</div>
           <Seg items={roles} value={s.role} onPick={(v) => { actions.setRole(v as Role); if (v === "client") nav({ to: "/portal" }); else if (v === "ops") nav({ to: "/ops" }); else if (s.role === "client" || s.role === "ops") nav({ to: "/overview" }); }} />
         </div>
+        )}
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Business context</div>
           <Seg items={[["freebeat", "BlueFocus / Freebeat"], ["clientb", "BlueFocus / Demo Client B"], ["direct", "Direct Customer Demo"]]} value={ctx} onPick={(v) => actions.setContext(v as "freebeat")} />
@@ -349,7 +368,7 @@ export function ChecksDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Scenario checklist · {s.checks.length}/22</DialogTitle>
+          <DialogTitle>Scenario checklist · {s.checks.length}/{CHECKS.length}</DialogTitle>
           <DialogDescription>Items tick automatically when you exercise them in the prototype.</DialogDescription>
         </DialogHeader>
         <ol className="space-y-1.5">
@@ -403,7 +422,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [checks, setChecks] = useState(false);
   const [scenario, setScenario] = useState(false);
   const p = personFor(s);
-  const u = p ? { name: p.full, title: p.title, initials: p.initials } : USERS[s.role];
+  const u = p ? { name: p.full, title: p.title, initials: p.initials } : s.biz === "direct" ? directUser(s) : USERS[s.role];
   const openPreview = (fn: (b: boolean) => void) => {
     fn(true);
     if (s.tasks.some((t) => t.id === "T-1024")) actions.markCheck("c18");
