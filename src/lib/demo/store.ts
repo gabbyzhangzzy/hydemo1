@@ -766,7 +766,8 @@ function requestOwner(s: State, clientId: string) { return clientId === "direct"
 /** Create a Creative Request (+ linked Agent Task) — shared by Creative page, Workspace and Campaign entry points. */
 function newRequest(s: State, clientId: string, text: string, source: CreativeRequest["source"], extra: { name?: string; campaignId?: string; prefill?: Partial<CreativeBrief>; scenario?: boolean } = {}) {
   const owner = requestOwner(s, clientId);
-  const r = ops.createRequest(s, { clientId, text, actor: actorName(s), owner, source, ...extra });
+  const brand = s.brands[clientId] ?? (clientId === "freebeat" ? FREEBEAT_BRAND : undefined);
+  const r = ops.createRequest(s, { clientId, text, actor: actorName(s), owner, source, ...extra, ...(brand ? { brand } : {}) });
   const tid = id(s, "T");
   s.tasks.unshift({ id: tid, clientId, title: `Creative request ${r.id}: ${r.name}`.slice(0, 80), agent: owner, status: "waiting_approval", stage: 0, stages: GENERIC_STAGES(r.name, owner), createdAt: now() });
   r.taskId = tid;

@@ -321,9 +321,9 @@ export function suggestReuse(s: State, clientId: string, format?: string): strin
 }
 export function createRequest(
   s: State,
-  input: { clientId: string; text: string; actor: string; owner: string; source: CreativeRequest["source"]; name?: string; campaignId?: string; prefill?: Partial<CreativeBrief>; scenario?: boolean },
+  input: { clientId: string; text: string; actor: string; owner: string; source: CreativeRequest["source"]; name?: string; campaignId?: string; prefill?: Partial<CreativeBrief>; scenario?: boolean; brand?: { audience: string; description: string; market: string } },
 ): CreativeRequest {
-  const brand = s.brands[input.clientId];
+  const brand = s.brands[input.clientId] ?? input.brand;
   const brief: CreativeBrief = { suggested: [] };
   // Agent reads Client / Brand context first (marked as suggestions).
   if (brand) {
