@@ -26,18 +26,7 @@ function Overview() {
         eyebrow={<>Home · <Phase p="P0" /></>}
         title={s.biz === "direct" ? "Northwind Coffee" : s.clientId === "all" ? "All Clients · Agency portfolio" : "Good afternoon, BlueFocus"}
         sub={s.biz === "direct" ? "Your AI AM handles campaigns and creative for you." : s.clientId === "all" ? "Aggregated view across your authorized clients, with per-client breakdowns." : "What your AI team and accounts need from you today."}
-        right={s.biz === "bluefocus" && (
-          <Button variant="brand" asChild onClick={() => actions.setClient("freebeat")}>
-            <Link to="/workspace">Open Freebeat Workspace <ArrowRight /></Link>
-          </Button>
-        )}
       />
-      {!s.onboarded && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand-soft/50 px-4 py-3 text-sm">
-          <span>Onboarding isn't finished yet — some setup is still in draft.</span>
-          <Button size="sm" variant="outline" asChild><Link to="/onboarding">Continue onboarding</Link></Button>
-        </div>
-      )}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Current clients" value={s.biz === "direct" ? 1 : s.clients.filter((c) => c.biz === "bluefocus").length} />
         <Stat label="Active campaigns" value={active} hint="Demo data" />
