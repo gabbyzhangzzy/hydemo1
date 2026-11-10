@@ -32,15 +32,16 @@ export function AiReportSection({ clientIds }: { clientIds: string[] }) {
   const reports = s.perfReports.filter((r) => clientIds.includes(r.clientId));
   const [openId, setOpenId] = useState<string | null>(null);
 
+  const direct = clientId === "direct";
   const ask = (q: string) => {
     const prompt = [
-      `@UA Agent — from the Analytics dashboard (${rangeLabel(f)}):`,
+      direct ? `From the Analytics dashboard (${rangeLabel(f)}):` : `@UA Agent — from the Analytics dashboard (${rangeLabel(f)}):`,
       q,
       `Context: client=${clientId}, channel=${f.channel}, country=${f.country}, device=${f.device}, objective=${f.objective}, status=${f.status}.`,
       "Structure the answer as: Observations / Possible explanations / Recommended next steps / Missing data or uncertainty. Correlation is not causation.",
     ].join("\n");
-    actions.startGenericTask(clientId, q.slice(0, 60), "UA Agent", prompt);
-    toast("UA Agent task created", { description: "Your question and the current filters were passed to the workspace." });
+    actions.startGenericTask(clientId, q.slice(0, 60), direct ? "AI AM" : "UA Agent", prompt);
+    toast(direct ? "AI AM task created" : "UA Agent task created", { description: "Your question and the current filters were passed to the workspace." });
     void navigate({ to: "/workspace" });
   };
 
@@ -80,8 +81,8 @@ export function AiReportSection({ clientIds }: { clientIds: string[] }) {
 
   return (
     <section className="grid gap-4 lg:grid-cols-2">
-      <Section title="Ask your AI Growth Team" right={<Demo />}>
-        <p className="mb-3 text-xs text-muted-foreground">Analysis requests route to Clayton / UA with your current filters and client context. Answers separate observations, possible explanations, next steps and uncertainty.</p>
+      <Section title={direct ? "Ask AI AM to Analyze" : "Ask your AI Growth Team"} right={<Demo />}>
+        <p className="mb-3 text-xs text-muted-foreground">Analysis requests route to {direct ? "your AI Account Manager" : "Clayton / UA"} with your current filters and client context. Answers separate observations, possible explanations, next steps and uncertainty.</p>
         <div className="flex flex-wrap gap-2">
           {SUGGESTED.map((q) => (
             <Button key={q} size="sm" variant="outline" onClick={() => ask(q)}><Sparkles className="size-3.5" /> {q}</Button>

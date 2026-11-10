@@ -221,7 +221,7 @@ function AnalysisCard({ onOpenTask, onFollowUp }: { onOpenTask: () => void; onFo
   return (
     <div className="overflow-hidden rounded-xl border border-ai-panel-border bg-card text-card-foreground">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/60 px-4 py-2.5">
-        <div className="text-sm font-semibold">Performance Analysis · Freebeat Meta</div>
+        <div className="text-sm font-semibold">Performance Analysis · {a.window}</div>
         <div className="flex gap-1.5"><Demo /><Pill tone="muted" className="text-[9px]">{a.freshness}</Pill></div>
       </div>
       <div className="grid grid-cols-3 gap-2 px-4 py-3 text-sm">
@@ -415,14 +415,23 @@ const SUGGESTIONS = [
   { icon: Sparkles, label: "Research creative opportunities", text: "@Creative Agent research creative opportunities based on our top ads" },
 ];
 
+/** Direct Customer starters — natural language only, never specialist @mentions. */
+const DIRECT_SUGGESTIONS = [
+  { icon: BarChart3, label: "Review performance", text: "How did my campaigns perform over the last seven days?" },
+  { icon: Layers, label: "Plan a campaign", text: "Help me plan a new campaign for my business." },
+  { icon: Sparkles, label: "Creative ideas", text: "What new creative ideas should we test?" },
+  { icon: ListChecks, label: "Check campaign status", text: "What's happening with my current campaigns?" },
+];
+
 function EmptyState({ s, cid }: { s: State; cid: string }) {
   const name = s.clients.find((c) => c.id === cid)?.name ?? "your";
-  const brandMissing = cid !== "direct" && s.brands[cid]?.status !== "confirmed";
+  const direct = cid === "direct";
+  const brandMissing = !direct && s.brands[cid]?.status !== "confirmed";
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-14 text-center md:py-20">
       <div className="grid size-12 place-items-center rounded-2xl bg-brand/15 text-brand"><Sparkles className="size-6" /></div>
-      <h2 className="mt-4 font-display text-2xl font-semibold md:text-3xl">{cid === "direct" ? "Welcome to your AI AM" : `Welcome to ${name}'s Growth Workspace`}</h2>
-      <p className="mt-2 text-sm text-ai-panel-muted">{cid === "direct" ? "Ask for campaigns, creative or a performance check." : "Work together with Clayton, your AI specialists and the rest of your team."}</p>
+      <h2 className="mt-4 font-display text-2xl font-semibold md:text-3xl">{direct ? `Welcome to ${name}'s AI Account Manager` : `Welcome to ${name}'s Growth Workspace`}</h2>
+      <p className="mt-2 text-sm text-ai-panel-muted">{direct ? "One AI teammate for your marketing — ask for campaigns, creative or a performance check." : "Work together with Clayton, your AI specialists and the rest of your team."}</p>
       <div className="mt-8 grid w-full gap-2.5 text-left">
         {cid === "freebeat" && (
           <button onClick={() => { actions.setPerson("sarah"); actions.sendChannelMessage(cid, MAIN_PROMPT); }} className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm transition-colors hover:border-brand">
@@ -430,8 +439,8 @@ function EmptyState({ s, cid }: { s: State; cid: string }) {
             {MAIN_PROMPT}
           </button>
         )}
-        <div className="grid gap-2.5 sm:grid-cols-3">
-          {SUGGESTIONS.map((x) => (
+        <div className={cn("grid gap-2.5", direct ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
+          {(direct ? DIRECT_SUGGESTIONS : SUGGESTIONS).map((x) => (
             <button key={x.label} onClick={() => actions.sendChannelMessage(cid, x.text)} className="rounded-xl border border-ai-panel-border bg-ai-panel-elevated/60 p-3.5 text-sm transition-colors hover:border-brand">
               <x.icon className="mb-2 size-4 text-brand" />
               <div className="font-medium">{x.label}</div>
@@ -628,11 +637,15 @@ function Workspace() {
   const cid = s.biz === "direct" ? "direct" : s.clientId;
 
   if (s.biz === "direct") {
+    const company = s.clients.find((c) => c.id === "direct")?.name ?? "Northwind Coffee";
     return (
       <ImmersiveFrame s={s} cid="direct" title={
         <div className="min-w-0 px-2">
-          <div className="font-display text-base font-semibold">Ask AI AM</div>
-          <div className="text-[11px] text-ai-panel-muted">Private 1:1 · not a shared channel</div>
+          <div className="flex items-center gap-2 font-display text-base font-semibold">
+            AI Account Manager
+            <span className="hidden items-center gap-1 rounded-full bg-ai-panel-elevated px-2 py-0.5 text-[10px] font-medium text-ai-panel-muted sm:flex"><Lock className="size-3" /> Private conversation</span>
+          </div>
+          <div className="truncate text-[11px] text-ai-panel-muted">Your AI growth teammate · {company}</div>
         </div>
       } />
     );
@@ -674,7 +687,8 @@ function ComposerInner({ s, cid, prefill }: { s: State; cid: string; prefill: bo
   useEffect(() => {
     if (pending) actions.consumePendingPrompt();
   }, [pending]);
-  return <ComposerWithPrefill key={captured ?? "default"} s={s} cid={cid} initial={captured ?? (prefill ? "@UA Agent " : "")} />;
+  const direct = s.biz === "direct" || cid === "direct";
+  return <ComposerWithPrefill key={captured ?? "default"} s={s} cid={cid} initial={captured ?? (prefill && !direct ? "@UA Agent " : "")} />;
 }
 
 function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initial: string }) {
@@ -682,9 +696,11 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
   const [mentionQ, setMentionQ] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const disabled = s.role === "ops";
+  const direct = s.biz === "direct" || cid === "direct";
 
   const onChange = (v: string) => {
     setInput(v);
+    if (direct) { setMentionQ(null); return; } // Direct Customers never mention specialist agents
     const m = v.slice(0, taRef.current?.selectionStart ?? v.length).match(/@([\w ]*)$/);
     setMentionQ(m ? (m[1] ?? "") : null);
   };
@@ -723,7 +739,7 @@ function ComposerWithPrefill({ s, cid, initial }: { s: State; cid: string; initi
           rows={1}
           value={input}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={disabled ? "Ops can view; messaging as agency user disabled" : `Message #${channelName(s, cid)} — type @ to mention`}
+          placeholder={disabled ? "Ops can view; messaging as agency user disabled" : direct ? "Ask your AI AM anything about your marketing…" : `Message #${channelName(s, cid)} — type @ to mention`}
           disabled={disabled}
           className="min-h-10 resize-none border-0 bg-transparent text-ai-panel-foreground shadow-none placeholder:text-ai-panel-muted focus-visible:ring-0"
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } if (e.key === "Escape") setMentionQ(null); }}

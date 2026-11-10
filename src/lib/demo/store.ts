@@ -262,12 +262,21 @@ export const MENTIONABLES: { id: string; label: string; kind: "human" | "ai" }[]
   ...PEOPLE.map((p) => ({ id: p.id as string, label: p.id === "bfa" ? "BlueFocus Admin" : p.name, kind: "human" as const })),
 ];
 
-/** The human currently acting, when the role is an agency role. */
+/** The human currently acting, when the role is an agency role. Never an agency persona in Direct Customer mode. */
 export function personFor(s: State): Person | null {
+  if (s.biz === "direct") return null;
   if (s.role !== "admin" && s.role !== "member") return null;
   return PEOPLE.find((p) => p.id === s.person) ?? PEOPLE[0]!;
 }
+/** Direct Customer display identity — the signed-in demo user or the company admin, never a BlueFocus persona. */
+export function directUser(s: State): { name: string; title: string; initials: string } {
+  const company = s.clients.find((c) => c.id === "direct")?.name ?? "Northwind Coffee";
+  const name = s.identity?.name ?? "Jordan Lee";
+  const initials = name.split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "JL";
+  return { name, title: `${company} · ${s.role === "member" ? "Member" : "Admin"}`, initials };
+}
 export function actorName(s: State): string {
+  if (s.biz === "direct") return directUser(s).name;
   return personFor(s)?.full ?? USERS[s.role].name;
 }
 
@@ -734,7 +743,8 @@ function completeCreativeTask(s:State,t:Task) {
   }
   delete a.pendingTask;
   t.result=t.creativeKind==="analysis"?"Analysis ready. Review linked Analytics ad metrics; test a fresh opening without changing deployed versions (simulated).":`V${vn} ready for human review (simulated).`;
-  s.messages.push({id:id(s,"M"),clientId:a.clientId,from:t.creativeKind==="analysis"?"ua":"creative",text:`${a.name}: ${t.result} @David`,at:now(),taskId:t.id,creativeId:a.id,creativeVersion:vn});notify(s,`${a.name}: ${t.result}`,"/creative");
+  const direct=a.clientId==="direct";
+  s.messages.push({id:id(s,"M"),clientId:a.clientId,from:direct?"aiam":t.creativeKind==="analysis"?"ua":"creative",text:`${a.name}: ${t.result}${direct?"":" @David"}`,at:now(),taskId:t.id,creativeId:a.id,creativeVersion:vn});notify(s,`${a.name}: ${t.result}`,"/creative");
 }
 export const actions = {
   importCreative(asset: CreativeAsset) {
@@ -789,9 +799,9 @@ export const actions = {
   },
   creativeTask(aid:string,vn:number,kind:"revision"|"analysis",reason:string) {
     update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(!a||!v||!can.editDraft(s.role)||a.pendingTask)return;
-      const tid=id(s,"T");a.pendingTask=tid;const agent=kind==="analysis"?"UA Agent":"Creative Agent";
+      const tid=id(s,"T");a.pendingTask=tid;const direct=a.clientId==="direct";const agent=direct?"AI AM":kind==="analysis"?"UA Agent":"Creative Agent";
       s.tasks.unshift({id:tid,clientId:a.clientId,title:`${kind==="analysis"?"Analyze":"Revise"} ${a.name} V${vn}`,agent,status:"running",stage:0,stages:GENERIC_STAGES(reason,agent),createdAt:now(),creativeId:aid,creativeVersion:vn,creativeKind:kind,creativeReason:reason});
-      s.messages.push({id:id(s,"M"),clientId:a.clientId,from:kind==="analysis"?"ua":"creative",text:`${agent} is ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`,at:now(),taskId:tid,creativeId:aid,creativeVersion:vn});notify(s,`${tid} started for ${a.name}`,"/workspace");
+      s.messages.push({id:id(s,"M"),clientId:a.clientId,from:direct?"aiam":kind==="analysis"?"ua":"creative",text:direct?`I'm ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`:`${agent} is ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`,at:now(),taskId:tid,creativeId:aid,creativeVersion:vn});notify(s,`${tid} started for ${a.name}`,"/workspace");
     });
   },
   generateCreative(clientId:string,name:string,prompt:string) {
@@ -937,6 +947,42 @@ export const actions = {
     if (!trimmed) return;
     update((s) => {
       if (!can.agency(s.role)) return;
+
+      // Direct Customer: ONE visible AI Account Manager. Specialist @mentions are
+      // intercepted — AI AM coordinates UA/Creative capabilities internally and is
+      // the only AI participant that ever speaks in the direct conversation.
+      if (s.biz === "direct" || cid === "direct") {
+        say(s, "user", trimmed, undefined, "direct");
+        check(s, "c23");
+        const hadSpecialistMention = /@(UA Agent|Creative Agent|Clayton)/i.test(trimmed);
+        if (hadSpecialistMention) check(s, "c24");
+
+        if (/plan a new campaign|new campaign/i.test(trimmed)) {
+          const clientName = s.clients.find((c) => c.id === "direct")?.name ?? "your business";
+          const open = allProposals(s).find((c) => c.clientId === "direct" && STATUS_FLOW.indexOf(c.status) < STATUS_FLOW.indexOf("submitted"));
+          if (!open) {
+            const c: Campaign = { id: id(s, "CMP-A"), clientId: "direct", name: `${clientName} — New Campaign Proposal`, platform: "Meta", objective: "Awareness", geo: "United States", dailyBudget: 150, totalCap: 1500, audience: "Local audience — to be refined together", placements: ["Instagram Reels", "Facebook Feed"], assets: 0, revision: 1, status: "draft", approvedRevision: null, revisions: [{ rev: 1, by: "AI AM", change: "Initial proposal from planning request" }] };
+            s.drafts.unshift(c);
+            logActivity(s, { campaignId: c.id, actor: "AI AM", kind: "Agent", action: "Proposal generated from planning request", outcome: "Revision 1 · draft created", simulated: true });
+            say(s, "aiam", `I've drafted a starting proposal for ${clientName} — Revision 1 is in Campaigns. Confirm the goal, budget and audience and I'll refine it before you approve.`, "proposal", "direct");
+            check(s, "c25");
+          } else {
+            say(s, "aiam", `There's already an open proposal: “${open.name}” (Revision ${open.revision}, ${STATUS_LABEL[open.status]}). I've kept it linked in Campaigns — want me to revise it instead?`, undefined, "direct");
+          }
+          return;
+        }
+
+        const cleaned = trimmed.replace(/@(UA Agent|Creative Agent|Clayton)[,:\s—-]*/gi, "").trim() || trimmed;
+        const title = cleaned.length > 48 ? cleaned.slice(0, 48) + "…" : cleaned;
+        if (s.tasks.some((t) => t.clientId === "direct" && t.title === title && t.status === "running")) return;
+        const tid = id(s, "T");
+        s.tasks.unshift({ id: tid, clientId: "direct", title, agent: "AI AM", status: "running", stage: 0, stages: GENERIC_STAGES(title, "AI AM"), createdAt: now() });
+        say(s, "aiam", hadSpecialistMention
+          ? `I can help with that — I'll coordinate the specialist work behind the scenes and report back. Started task ${tid}: “${title}”.`
+          : `Started task ${tid}: “${title}”. I'll post the summary here.`, undefined, "direct", { taskId: tid });
+        return;
+      }
+
       const mentions = parseMentions(trimmed);
       const p = personFor(s);
       const from: MsgFrom = p?.id ?? "user";
@@ -1077,10 +1123,15 @@ export const actions = {
   },
   startGenericTask(clientId: string, title: string, agent: string, prompt?: string) {
     update((s) => {
+      // Direct Customer: AI actions from Campaigns/Analytics/Creative route through
+      // AI AM — the task owner is AI AM and specialist @mention prefixes are stripped.
+      const direct = clientId === "direct" || s.biz === "direct";
+      const effAgent = direct ? "AI AM" : agent;
       const tid = id(s, "T");
-      s.tasks.unshift({ id: tid, clientId, title, agent, status: "running", stage: 0, stages: GENERIC_STAGES(title, agent), createdAt: now() });
-      if (prompt) say(s, personFor(s)?.id ?? "user", prompt, undefined, clientId);
-      say(s, clientId === "direct" ? "aiam" : "clayton", `Started task ${tid}: “${title}”. I'll post the summary here.`, undefined, clientId, { taskId: tid });
+      s.tasks.unshift({ id: tid, clientId, title, agent: effAgent, status: "running", stage: 0, stages: GENERIC_STAGES(title, effAgent), createdAt: now() });
+      if (prompt) say(s, direct ? "user" : (personFor(s)?.id ?? "user"), direct ? prompt.replace(/^@(UA Agent|Creative Agent|Clayton)\s*[—-]\s*/i, "") : prompt, undefined, clientId);
+      say(s, direct ? "aiam" : "clayton", `Started task ${tid}: “${title}”. I'll post the summary here.`, undefined, clientId, { taskId: tid });
+      if (direct) check(s, "c26");
     });
   },
   retryTask(tid: string) {
@@ -1104,7 +1155,7 @@ export const actions = {
           t.status = "completed";
           if(t.creativeId){completeCreativeTask(s,t);continue;}
           t.result = "Summary: spend pacing on track; frequency stable; recommend testing one new hook (demo).";
-          const from: MsgFrom = t.agent.includes("UA") ? "ua" : t.agent.includes("Creative") ? "creative" : t.clientId === "direct" ? "aiam" : "clayton";
+          const from: MsgFrom = t.clientId === "direct" ? "aiam" : t.agent.includes("UA") ? "ua" : t.agent.includes("Creative") ? "creative" : "clayton";
           say(s, from, `${t.id} done — ${t.result}`, undefined, t.clientId, { taskId: t.id });
           notify(s, `${t.id} completed: ${t.title}`, "/tasks");
         }
@@ -1252,11 +1303,13 @@ export const actions = {
     });
     return cid;
   },
-  /** New Campaign → Plan with Clayton: prefill the workspace composer for the current client. */
+  /** New Campaign → Plan with Clayton (agency) / Plan with AI AM (direct): prefill the workspace composer. */
   planWithClayton(clientId: string) {
     update((s) => {
       const name = s.clients.find((c) => c.id === clientId)?.name ?? "the client";
-      s.pendingPrompt = `@Clayton Help me plan a new campaign for ${name}.`;
+      s.pendingPrompt = s.biz === "direct" || clientId === "direct"
+        ? `Help me plan a new campaign for ${name}.`
+        : `@Clayton Help me plan a new campaign for ${name}.`;
       if (s.clientId !== clientId) s.clientId = clientId;
     });
   },
