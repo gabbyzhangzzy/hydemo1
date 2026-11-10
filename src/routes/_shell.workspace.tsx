@@ -489,7 +489,7 @@ function MessageList({ s, cid, msgs, onOpenTask, onFollowUp }: { s: State; cid: 
                   </div>
                   <div className={cn("max-w-2xl text-sm leading-relaxed", system ? "rounded-lg border border-dashed border-ai-panel-border px-3 py-2 text-ai-panel-muted" : "text-ai-panel-foreground/95")}>
                     <RichText text={m.text} />
-                    {m.requestId && <Button variant="link" size="sm" className="h-auto whitespace-normal px-0 text-brand" asChild><Link to="/creative/requests/$requestId" params={{ requestId: m.requestId }}>Open Creative Request {m.requestId}</Link></Button>}
+                    {m.requestId && <Button variant="link" size="sm" className="ml-1 h-auto whitespace-normal px-0 text-brand" asChild><Link to="/creative/requests/$requestId" params={{ requestId: m.requestId }}>Open Creative Request {m.requestId}</Link></Button>}
                     {m.creativeId && <Button variant="link" size="sm" className="h-auto whitespace-normal px-0 text-brand" asChild><Link to="/creative" search={{asset:m.creativeId,...(m.creativeVersion?{version:m.creativeVersion}:{})}}>Open creative · V{m.creativeVersion}</Link></Button>}
                   </div>
                   {m.card === "progress" && <div className="max-w-2xl"><ProgressCard text={m.text} onOpenTask={() => openTask(m)} /></div>}
