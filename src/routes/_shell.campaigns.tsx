@@ -101,10 +101,11 @@ function CampaignsHub() {
     </button>
   );
 
+  const direct = s.biz === "direct";
   const planWithClayton = () => {
-    const cid = s.clientId === "all" ? "freebeat" : s.clientId;
+    const cid = direct ? "direct" : s.clientId === "all" ? "freebeat" : s.clientId;
     actions.planWithClayton(cid);
-    toast("Opening the Agent Workspace", { description: "A planning request for Clayton is prefilled in the composer." });
+    toast(direct ? "Opening Ask AI AM" : "Opening the Agent Workspace", { description: direct ? "A planning request for your AI AM is prefilled in the composer." : "A planning request for Clayton is prefilled in the composer." });
     void navigate({ to: "/workspace" });
   };
 
@@ -120,7 +121,7 @@ function CampaignsHub() {
               <Button variant="brand" disabled={!can.editDraft(s.role)}><Plus /> New Campaign <ChevronDown /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={planWithClayton}><Sparkles className="text-brand" /> Plan with Clayton</DropdownMenuItem>
+              <DropdownMenuItem onClick={planWithClayton}><Sparkles className="text-brand" /> {direct ? "Plan with AI AM" : "Plan with Clayton"}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setCreateOpen(true)}><Plus /> Create Manually</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -265,8 +266,8 @@ function CampaignsHub() {
                     <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" asChild><Link to="/campaigns/$campaignId" params={{ campaignId: r.id }}>View</Link></Button>
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => askAgent(r, s.clientId === "all" ? r.clientId : r.clientId, navigate)}>
-                          <Bot className="size-3" /> Ask UA
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => askAgent(r, r.clientId, navigate)}>
+                          <Bot className="size-3" /> {r.clientId === "direct" ? "Ask AI AM" : "Ask UA"}
                         </Button>
                       </div>
                     </td>
@@ -293,14 +294,15 @@ function CampaignsHub() {
 }
 
 function askAgent(r: UnifiedCampaign, clientId: string, navigate: ReturnType<typeof useNavigate>) {
+  const direct = clientId === "direct";
   const prompt = [
-    `@UA Agent — campaign review request from the Campaigns hub:`,
+    direct ? `Campaign review request from the Campaigns hub:` : `@UA Agent — campaign review request from the Campaigns hub:`,
     `Campaign “${r.name}” (${r.id}) · ${r.channel} · ${r.objective} · status ${r.statusLabel}.`,
     r.agg ? `Performance (current filters): spend ${fmtMoney(r.agg.spend)}, CTR ${r.agg.ctr.toFixed(2)}%, CPM ${fmtMoney(r.agg.cpm)}.` : "No delivery yet — this is a proposal.",
     "Analyze and recommend next steps. Do not change budgets, targeting or creatives without approval.",
   ].join("\n");
-  actions.startGenericTask(clientId, `Campaign review: ${r.name}`.slice(0, 80), "UA Agent", prompt);
-  toast("UA Agent task created", { description: `Context for ${r.id} was passed to the workspace.` });
+  actions.startGenericTask(clientId, `Campaign review: ${r.name}`.slice(0, 80), direct ? "AI AM" : "UA Agent", prompt);
+  toast(direct ? "AI AM task created" : "UA Agent task created", { description: `Context for ${r.id} was passed to ${direct ? "Ask AI AM" : "the workspace"}.` });
   void navigate({ to: "/workspace" });
 }
 
