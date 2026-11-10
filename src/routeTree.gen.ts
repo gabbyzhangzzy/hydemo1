@@ -28,6 +28,7 @@ import { Route as ShellWalletRouteImport } from './routes/_shell.wallet'
 import { Route as ShellWorkflowsRouteImport } from './routes/_shell.workflows'
 import { Route as ShellWorkspaceRouteImport } from './routes/_shell.workspace'
 import { Route as ShellCampaignsCampaignIdRouteImport } from './routes/_shell.campaigns.$campaignId'
+import { Route as ShellCreativeRequestsRequestIdRouteImport } from './routes/_shell.creative_.requests.$requestId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -124,6 +125,12 @@ const ShellCampaignsCampaignIdRoute =
     path: '/$campaignId',
     getParentRoute: () => ShellCampaignsRoute,
   } as any)
+const ShellCreativeRequestsRequestIdRoute =
+  ShellCreativeRequestsRequestIdRouteImport.update({
+    id: '/creative_/requests/$requestId',
+    path: '/creative/requests/$requestId',
+    getParentRoute: () => ShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/workflows': typeof ShellWorkflowsRoute
   '/workspace': typeof ShellWorkspaceRoute
   '/campaigns/$campaignId': typeof ShellCampaignsCampaignIdRoute
+  '/creative/requests/$requestId': typeof ShellCreativeRequestsRequestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -164,6 +172,7 @@ export interface FileRoutesByTo {
   '/workflows': typeof ShellWorkflowsRoute
   '/workspace': typeof ShellWorkspaceRoute
   '/campaigns/$campaignId': typeof ShellCampaignsCampaignIdRoute
+  '/creative/requests/$requestId': typeof ShellCreativeRequestsRequestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -186,6 +195,7 @@ export interface FileRoutesById {
   '/_shell/workflows': typeof ShellWorkflowsRoute
   '/_shell/workspace': typeof ShellWorkspaceRoute
   '/_shell/campaigns/$campaignId': typeof ShellCampaignsCampaignIdRoute
+  '/_shell/creative_/requests/$requestId': typeof ShellCreativeRequestsRequestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/workspace'
     | '/campaigns/$campaignId'
+    | '/creative/requests/$requestId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/workspace'
     | '/campaigns/$campaignId'
+    | '/creative/requests/$requestId'
   id:
     | '__root__'
     | '/'
@@ -249,6 +261,7 @@ export interface FileRouteTypes {
     | '/_shell/workflows'
     | '/_shell/workspace'
     | '/_shell/campaigns/$campaignId'
+    | '/_shell/creative_/requests/$requestId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellCampaignsCampaignIdRouteImport
       parentRoute: typeof ShellCampaignsRoute
     }
+    '/_shell/creative_/requests/$requestId': {
+      id: '/_shell/creative_/requests/$requestId'
+      path: '/creative/requests/$requestId'
+      fullPath: '/creative/requests/$requestId'
+      preLoaderRoute: typeof ShellCreativeRequestsRequestIdRouteImport
+      parentRoute: typeof ShellRoute
+    }
   }
 }
 
@@ -423,6 +443,7 @@ interface ShellRouteChildren {
   ShellWalletRoute: typeof ShellWalletRoute
   ShellWorkflowsRoute: typeof ShellWorkflowsRoute
   ShellWorkspaceRoute: typeof ShellWorkspaceRoute
+  ShellCreativeRequestsRequestIdRoute: typeof ShellCreativeRequestsRequestIdRoute
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
@@ -440,6 +461,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellWalletRoute: ShellWalletRoute,
   ShellWorkflowsRoute: ShellWorkflowsRoute,
   ShellWorkspaceRoute: ShellWorkspaceRoute,
+  ShellCreativeRequestsRequestIdRoute: ShellCreativeRequestsRequestIdRoute,
 }
 
 const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
