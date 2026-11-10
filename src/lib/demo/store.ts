@@ -799,9 +799,9 @@ export const actions = {
   },
   creativeTask(aid:string,vn:number,kind:"revision"|"analysis",reason:string) {
     update(s=>{const a=s.creativeAssets.find(a=>a.id===aid);const v=a?.versions.find(v=>v.number===vn);if(!a||!v||!can.editDraft(s.role)||a.pendingTask)return;
-      const tid=id(s,"T");a.pendingTask=tid;const agent=kind==="analysis"?"UA Agent":"Creative Agent";
+      const tid=id(s,"T");a.pendingTask=tid;const direct=a.clientId==="direct";const agent=direct?"AI AM":kind==="analysis"?"UA Agent":"Creative Agent";
       s.tasks.unshift({id:tid,clientId:a.clientId,title:`${kind==="analysis"?"Analyze":"Revise"} ${a.name} V${vn}`,agent,status:"running",stage:0,stages:GENERIC_STAGES(reason,agent),createdAt:now(),creativeId:aid,creativeVersion:vn,creativeKind:kind,creativeReason:reason});
-      s.messages.push({id:id(s,"M"),clientId:a.clientId,from:kind==="analysis"?"ua":"creative",text:`${agent} is ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`,at:now(),taskId:tid,creativeId:aid,creativeVersion:vn});notify(s,`${tid} started for ${a.name}`,"/workspace");
+      s.messages.push({id:id(s,"M"),clientId:a.clientId,from:direct?"aiam":kind==="analysis"?"ua":"creative",text:direct?`I'm ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`:`${agent} is ${kind==="analysis"?"analyzing":"preparing a new version of"} ${a.name} from V${vn} (simulated).`,at:now(),taskId:tid,creativeId:aid,creativeVersion:vn});notify(s,`${tid} started for ${a.name}`,"/workspace");
     });
   },
   generateCreative(clientId:string,name:string,prompt:string) {
