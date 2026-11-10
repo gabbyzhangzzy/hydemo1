@@ -143,9 +143,11 @@ function Sidebar({ rail, onToggle }: { rail?: boolean; onToggle?: (() => void) |
             { group: "Settings", items: [{ to: "/team", label: "Organization & Team", icon: Users }] },
           ]
         : [
-          NAV[0],
-          { group: "AI Workspace", items: [{ to: "/workspace", label: "Agent Workspace", icon: MessageSquare }] },
-          ...NAV.slice(1),
+          ...NAV.flatMap((g) =>
+            g.group === "Home"
+              ? [g, { group: "AI Workspace", items: [{ to: "/workspace", label: "Agent Workspace", icon: MessageSquare }] }]
+              : [g],
+          ),
           ...(s.role === "ops" ? [{ group: "Hellyeah Internal", items: [{ to: "/ops", label: "Ops Queue", icon: Headset }] }] : []),
         ];
   const openCases = s.cases.filter((c) => c.status !== "Closed" && c.status !== "Resolved").length;
