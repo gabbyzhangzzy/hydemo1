@@ -217,18 +217,20 @@ export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: 
   const asset = s.creativeAssets.find(a=>a.id===(usage?.creativeId??ad?.ad.creativeId));
   const version = asset?.versions.find(v=>v.number===(usage?.version??asset.current));
 
+  const direct = meta?.clientId === "direct";
   const ask = (agent: "UA Agent" | "Creative Agent") => {
     if (!meta || !ad) return;
     const title = `Ad review: ${ad.ad.name}`.slice(0, 80);
     const prompt = [
-      `@${agent} — from the Analytics ad detail (${rangeLabel(f)}):`,
+      direct ? `From the Analytics ad detail (${rangeLabel(f)}):` : `@${agent} — from the Analytics ad detail (${rangeLabel(f)}):`,
       `Ad “${ad.ad.name}” (${ad.ad.id}) in campaign “${meta.name}” (${meta.channel}).`,
       `Performance: spend ${fmtMoney(ad.spend)}, CTR ${fmtPct(ad.ctr)}, CPM ${fmtMoney(ad.cpm)}${ad.cpa != null ? `, CPA ${fmtMoney(ad.cpa)}` : ""}.`,
       agent === "Creative Agent" ? "Assess the creative and suggest iteration directions based on its performance." : "Diagnose this ad's performance and recommend next steps. Do not change budgets without approval.",
     ].join("\n");
+    const effAgent = direct ? "AI AM" : agent;
     if(asset&&version) actions.creativeTask(asset.id,version.number,agent==="UA Agent"?"analysis":"revision",prompt);
-    else actions.startGenericTask(meta.clientId, title, agent, prompt);
-    toast(`${agent} task created`, { description: `Context for ${ad.ad.id} was passed to the workspace.` });
+    else actions.startGenericTask(meta.clientId, title, effAgent, prompt);
+    toast(`${effAgent} task created`, { description: `Context for ${ad.ad.id} was passed to the workspace.` });
     onClose();
     void navigate({ to: "/workspace" });
   };
@@ -273,13 +275,13 @@ export function AdDrawer({ clientIds, campaignId, adId, onClose }: { clientIds: 
                 <ul className="space-y-1 text-muted-foreground">
                   <li>• Observation: CTR {fmtPct(ad.ctr)} vs campaign average — {ad.ctr > 0 && ad.cpc > 0 ? "see table for comparison" : "insufficient data"}.</li>
                   <li>• Possible explanation: placement mix and audience fatigue can move CTR; correlation is not causation.</li>
-                  <li>• Next step: ask the UA or Creative Agent for a deeper read before changing anything.</li>
+                  <li>• Next step: ask {direct ? "your AI AM" : "the UA or Creative Agent"} for a deeper read before changing anything.</li>
                 </ul>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => { onClose(); void navigate({ to: "/creative", search: asset&&version?{asset:asset.id,version:version.number}:{} }); }}>View Creative</Button>
-                <Button size="sm" variant="outline" onClick={() => ask("UA Agent")}>Ask UA Agent</Button>
-                <Button size="sm" variant="outline" onClick={() => ask("Creative Agent")}>Ask Creative Agent</Button>
+                <Button size="sm" variant="outline" onClick={() => ask("UA Agent")}>{direct ? "Ask AI AM to Analyze" : "Ask UA Agent"}</Button>
+                <Button size="sm" variant="outline" onClick={() => ask("Creative Agent")}>{direct ? "Ask AI AM for Creative Ideas" : "Ask Creative Agent"}</Button>
                 <Button size="sm" variant="brand" onClick={() => ask("UA Agent")}>Create Optimization Task</Button>
               </div>
             </div>

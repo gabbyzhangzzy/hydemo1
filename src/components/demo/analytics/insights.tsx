@@ -24,10 +24,11 @@ export function InsightsSection({ clientIds, onOpenCampaign }: { clientIds: stri
       toast("Adjust the filters to widen the dataset.");
       return;
     }
-    const agent = ins.actionKind === "creative" ? "Creative Agent" : "UA Agent";
+    const direct = clientId === "direct";
+    const agent = direct ? "AI AM" : ins.actionKind === "creative" ? "Creative Agent" : "UA Agent";
     const title = `Analytics: ${ins.headline}`.slice(0, 80);
     const prompt = [
-      `@${agent === "UA Agent" ? "UA Agent" : "Creative Agent"} — from the Analytics dashboard (${rangeLabel(f)}):`,
+      direct ? `From the Analytics dashboard (${rangeLabel(f)}):` : `@${agent} — from the Analytics dashboard (${rangeLabel(f)}):`,
       `Insight: ${ins.headline}`,
       `Evidence: ${ins.evidence.join(" · ")}`,
       `Filters: channel=${f.channel}, country=${f.country}, device=${f.device}, objective=${f.objective}`,
