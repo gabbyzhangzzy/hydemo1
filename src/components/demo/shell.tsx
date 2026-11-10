@@ -60,6 +60,7 @@ function TaskRunner() {
 
 function ClientSwitcher() {
   const s = useDemo();
+  const nav = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
   const org = s.biz === "direct" ? "Northwind Coffee" : "BlueFocus";
@@ -88,11 +89,11 @@ function ClientSwitcher() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-60">
           <DropdownMenuLabel>BlueFocus clients</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => actions.setClient("all")}>
+          <DropdownMenuItem onClick={() => { actions.setClient("all"); nav({ to: "/overview" }); }}>
             <LayoutGrid /> All Clients {s.clientId === "all" && <Check className="ml-auto" />}
           </DropdownMenuItem>
           {s.clients.filter((c) => c.biz === "bluefocus").map((c) => (
-            <DropdownMenuItem key={c.id} onClick={() => actions.setClient(c.id)}>
+            <DropdownMenuItem key={c.id} onClick={() => { actions.setClient(c.id); nav({ to: "/overview" }); }}>
               <Building2 /> {c.name} {s.clientId === c.id && <Check className="ml-auto" />}
             </DropdownMenuItem>
           ))}
