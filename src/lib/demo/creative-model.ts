@@ -13,6 +13,10 @@ export interface CreativeAsset {
   id: string; clientId: string; name: string; source: "Uploaded" | "AI Generated"; channel: string;
   tags: string[]; current: number; reviewer: string; clientRequired: boolean; versions: CreativeVersion[];
   pendingTask?: string; briefId?: string; fingerprint?: string;
+  /** Creative Request that produced this asset. */
+  requestId?: string;
+  /** Google Drive provenance (imported via simulated Drive connection). */
+  drive?: import("./creative-ops").DriveMeta;
 }
 export interface CreativeUsage { creativeId: string; version: number; campaignId: string; adId?: string; }
 export interface CreativePolicy { enabled: boolean; version: number; enabledBy: string | null; }
