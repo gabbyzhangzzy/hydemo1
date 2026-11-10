@@ -60,6 +60,12 @@ function CampaignDetailPage() {
       brief: `@Creative Agent — prepare a creative brief for “${name}” (${campaignId}, ${objective}). Use approved brand assets only; new creative follows the normal review and approval flow.`,
       report: `@UA Agent — generate a performance review for “${name}” (${campaignId}) for the current date range. Prepare it as an internal reporting task.`,
     };
+    if (kind === "brief") {
+      const objective0 = /retarget/i.test(objective) ? "Retargeting" : /aware|reach/i.test(objective) ? "Awareness" : /lead/i.test(objective) ? "Lead Generation" : /conv|sale/i.test(objective) ? "Conversion / Sales" : "User Acquisition";
+      const rid = actions.createCreativeRequest(clientId, `Create a creative brief for campaign “${name}” (${campaignId}).`, { source: "Campaign", campaignId, name: `${name} — Creative Brief`, prefill: { objective: objective0, platform: /tiktok/i.test(channel) ? "TikTok Ads" : /google/i.test(channel) ? "Google Ads" : "Meta" } });
+      if (rid) { toast("Creative Request created", { description: `${rid} is linked to ${campaignId}.` }); void navigate({ to: "/creative/requests/$requestId", params: { requestId: rid } }); }
+      return;
+    }
     const effAgent = direct ? "AI AM" : agent;
     actions.startGenericTask(clientId, `${kind}: ${name}`.slice(0, 80), effAgent, prompts[kind] ?? prompts["investigate"]!);
     toast(`${effAgent} task created`, { description: `Context for ${campaignId} was passed to the workspace.` });

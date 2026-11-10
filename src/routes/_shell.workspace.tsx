@@ -337,6 +337,9 @@ function TaskDrawer({ taskId, onClose }: { taskId: string | null; onClose: () =>
               <SheetDescription>{t.title}</SheetDescription>
             </SheetHeader>
             <div className="space-y-5 px-4 pb-8 text-sm">
+              {s.creativeRequests.filter((r) => r.taskId === t.id).map((r) => (
+                <Button key={r.id} size="sm" variant="outline" asChild><Link to="/creative/requests/$requestId" params={{ requestId: r.id }}>Open Creative Request {r.id}</Link></Button>
+              ))}
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border p-3 text-xs">
                 <div><dt className="text-muted-foreground">Client</dt><dd className="font-medium">{s.clients.find((c) => c.id === t.clientId)?.name}</dd></div>
                 <div><dt className="text-muted-foreground">Task owner</dt><dd className="font-medium">{t.agent}</dd></div>
@@ -412,6 +415,7 @@ function TaskDrawer({ taskId, onClose }: { taskId: string | null; onClose: () =>
 const SUGGESTIONS = [
   { icon: BarChart3, label: "Review campaign performance", text: "@UA Agent give me a quick performance review for this week" },
   { icon: Layers, label: "Plan a new campaign", text: "@Clayton plan a new campaign test for next month" },
+  { icon: Sparkles, label: "Request new creatives", text: "@Creative Agent, prepare three video concepts for Freebeat's next campaign." },
   { icon: Sparkles, label: "Research creative opportunities", text: "@Creative Agent research creative opportunities based on our top ads" },
 ];
 
@@ -485,6 +489,7 @@ function MessageList({ s, cid, msgs, onOpenTask, onFollowUp }: { s: State; cid: 
                   </div>
                   <div className={cn("max-w-2xl text-sm leading-relaxed", system ? "rounded-lg border border-dashed border-ai-panel-border px-3 py-2 text-ai-panel-muted" : "text-ai-panel-foreground/95")}>
                     <RichText text={m.text} />
+                    {m.requestId && <Button variant="link" size="sm" className="h-auto whitespace-normal px-0 text-brand" asChild><Link to="/creative/requests/$requestId" params={{ requestId: m.requestId }}>Open Creative Request {m.requestId}</Link></Button>}
                     {m.creativeId && <Button variant="link" size="sm" className="h-auto whitespace-normal px-0 text-brand" asChild><Link to="/creative" search={{asset:m.creativeId,...(m.creativeVersion?{version:m.creativeVersion}:{})}}>Open creative · V{m.creativeVersion}</Link></Button>}
                   </div>
                   {m.card === "progress" && <div className="max-w-2xl"><ProgressCard text={m.text} onOpenTask={() => openTask(m)} /></div>}
