@@ -201,6 +201,7 @@ function DeliveryOverview({ meta, ids, onAsk }: { meta: CampaignMeta; ids: strin
   const f = useAnalyticsFilters();
   const rows = filteredRows(ids, { ...f, campaignId: meta.id });
   const a = agg(rows);
+  const direct = meta.clientId === "direct";
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -215,7 +216,7 @@ function DeliveryOverview({ meta, ids, onAsk }: { meta: CampaignMeta; ids: strin
           <li className="rounded-lg border border-border px-3 py-2">• Recommendation: review the Structure tab for ad-level CTR spread before changing budgets.</li>
         </ul>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => onAsk("investigate")}><Bot /> Ask UA Agent to Investigate</Button>
+          <Button size="sm" variant="outline" onClick={() => onAsk("investigate")}><Bot /> {direct ? "Ask AI AM to Investigate" : "Ask UA Agent to Investigate"}</Button>
           <Button size="sm" variant="outline" onClick={() => onAsk("report")}><ClipboardList /> Generate Performance Review</Button>
         </div>
       </Section>
@@ -228,6 +229,7 @@ function StructureTab({ meta, ids, onOpenAd, onAsk }: { meta: CampaignMeta; ids:
   const f = useAnalyticsFilters();
   const rows = filteredRows(ids, { ...f, campaignId: meta.id });
   const ads = adBreakdown(meta.id, rows);
+  const direct = meta.clientId === "direct";
   const groupLabel = meta.channel === "Meta" ? "Ad Set" : "Ad Group";
   const groups = useMemo(() => {
     const map = new Map<string, AdRow[]>();
@@ -266,7 +268,7 @@ function StructureTab({ meta, ids, onOpenAd, onAsk }: { meta: CampaignMeta; ids:
                       <span className="tabular-nums text-muted-foreground">CTR {a.ctr.toFixed(2)}%</span>
                       <span className="tabular-nums text-muted-foreground">CPM {fmtMoney(a.cpm)}</span>
                       <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onOpenAd(a.ad.id)}>Details</Button>
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onAsk(a.ad)}><Bot className="size-3" /> Ask UA</Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onAsk(a.ad)}><Bot className="size-3" /> {direct ? "Ask AI AM" : "Ask UA"}</Button>
                     </div>
                   ))}
                 </div>
@@ -290,9 +292,9 @@ function CreativesTab({ campaignId, meta, clientId, onAskBrief }: { campaignId: 
     ...linked.map((ad) => ({ creativeId: ad.creativeId!, version: undefined as number | undefined, adId: ad.id })),
   ];
   return (
-    <Section title="Creative versions in this campaign" right={<Button size="sm" variant="outline" onClick={onAskBrief}><Sparkles /> Ask Creative Agent for Variations</Button>}>
+    <Section title="Creative versions in this campaign" right={<Button size="sm" variant="outline" onClick={onAskBrief}><Sparkles /> {clientId === "direct" ? "Ask AI AM for Variations" : "Ask Creative Agent for Variations"}</Button>}>
       {items.length === 0 ? (
-        <Empty title="No creative versions assigned">Assign approved versions from the Creative Library, or ask the Creative Agent for a brief.</Empty>
+        <Empty title="No creative versions assigned">Assign approved versions from the Creative Library, or ask {clientId === "direct" ? "your AI AM" : "the Creative Agent"} for a brief.</Empty>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((it, i) => {
