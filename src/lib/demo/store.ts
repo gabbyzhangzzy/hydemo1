@@ -8,6 +8,8 @@ import type { CreativeRequest, ProductionJob, DriveState, CreativeBrief, DriveRe
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
+import * as p0f from "./p0-flow";
+import { initialP0, type P0State } from "./p0-flow";
 export type Role = "admin" | "member" | "ops" | "client";
 export type Biz = "bluefocus" | "direct";
 export type AccessPath = "self" | "bd";
@@ -166,6 +168,8 @@ export interface PerfReport {
 
 export interface State {
   version: number;
+  /** P0 card workflow (#freebeat-growth guided demo). */
+  p0: P0State;
   creativeAssets: CreativeAsset[];
   creativeUsage: CreativeUsage[];
   creativePolicy: CreativePolicy;
@@ -388,6 +392,7 @@ function baseState(accessPath: AccessPath): State {
   const bd = accessPath === "bd";
   return {
     version: 6,
+    p0: initialP0(),
     ...(() => { const assets = seedCreatives(); const o = ops.seedCreativeOps(assets); return { creativeAssets: assets, creativeRequests: o.requests, productionJobs: o.jobs }; })(),
     drive: ops.seedDrive(),
     creativeUsage: seedUsage(),
@@ -492,6 +497,7 @@ export function hydrateDemo() {
         state.identity ??= null;
         state.acquisition ??= null;
         state.invites ??= [];
+        state.p0 ??= initialP0();
         emit();
       }
     }
@@ -781,6 +787,24 @@ function scheduleJobs(rid: string) {
   window.setTimeout(() => actions.advanceProduction(rid), 2600);
 }
 export const actions = {
+  /** Run a pure P0 workflow mutation. */
+  p0(fn: (p: P0State) => unknown) {
+    update((s) => { fn(s.p0); });
+  },
+  p0Reset() {
+    update((s) => { s.tasks = s.tasks.filter((t) => t.id !== s.p0.perf.followUpTaskId); s.p0 = initialP0(); });
+  },
+  p0FollowUpTask() {
+    update((s) => {
+      if (!s.p0.perf.next || s.p0.perf.followUpTaskId) return;
+      const tid = id(s, "T");
+      const title = "Test new 1-second creator hook on TikTok";
+      s.tasks.unshift({ id: tid, clientId: "freebeat", title, agent: "Creative Agent", status: "running", stage: 0, stages: GENERIC_STAGES(title, "Creative Agent"), createdAt: now() });
+      s.p0.perf.followUpTaskId = tid;
+      s.p0.seq += 1;
+      s.p0.events.push({ id: `P0-${s.p0.seq}`, from: "clayton", text: `Created follow-up task ${tid} for @Creative Agent: “${title}”. Any new ads will come back for creative and launch approval.`, at: now() });
+    });
+  },
   createCreativeRequest(clientId: string, text: string, opts: { name?: string; campaignId?: string; prefill?: Partial<CreativeBrief>; source?: CreativeRequest["source"] } = {}): string | null {
     let rid: string | null = null;
     update((s) => {
@@ -1070,6 +1094,8 @@ export const actions = {
     if (!trimmed) return;
     update((s) => {
       if (!can.agency(s.role)) return;
+      // P0 card workflow: sample messages in #freebeat-growth advance the scenario.
+      if (cid === "freebeat" && s.biz !== "direct" && p0f.handleText(s.p0, trimmed)) return;
 
       // Direct Customer: ONE visible AI Account Manager. Specialist @mentions are
       // intercepted — AI AM coordinates UA/Creative capabilities internally and is

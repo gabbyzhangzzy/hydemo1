@@ -10,6 +10,8 @@ import { Demo, Phase, Pill, TaskPill } from "@/components/demo/bits";
 import { DemoControls, MobileNav, Notifications, useShellUtils } from "@/components/demo/shell";
 import { LaunchPanel, ProposalCard, ReadinessPanel, ReportSummary } from "@/components/demo/campaign";
 import { actions, AI_TEAM, can, channelName, MAIN_PROMPT, MAIN_TASK_ID, MENTIONABLES, PEOPLE, personFor, taskView, UA_ANALYSIS, useDemo, type Msg, type MsgFrom, type PersonId, type State, type Task } from "@/lib/demo/store";
+import { P0CardView, P0Drawer, P0Progress, type DrawerKind } from "@/components/demo/p0/cards";
+import { STEP_LABELS, completedSteps, next as p0Next } from "@/lib/demo/p0-flow";
 import { pageHead } from "@/lib/demo/head";
 import { cn } from "@/lib/utils";
 
@@ -176,15 +178,26 @@ function GuidedDemo({ s, cid }: { s: State; cid: string }) {
   if (cid !== "freebeat" || !can.agency(s.role)) return null;
   const step = s.collab.step;
   const done = step >= 9;
+  const p0done = completedSteps(s.p0);
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button size="sm" variant="ghost" className="text-brand hover:bg-ai-panel-elevated hover:text-brand" title="Guided collaboration demo">
-          <Wand2 /> <span className="hidden xl:inline">Guided demo</span> <span className="text-[10px] text-ai-panel-muted">{Math.min(step, 9)}/9</span>
+          <Wand2 /> <span className="hidden xl:inline">Guided demo</span> <span className="text-[10px] text-ai-panel-muted">{p0done}/9</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 space-y-3">
-        <div className="text-sm font-semibold">Experience Agency + AI Collaboration</div>
+        <div className="text-sm font-semibold">P0 Card Workflow · Brief → Day-7 report</div>
+        <ol className="space-y-1 text-xs">
+          {STEP_LABELS.slice(0, Math.min(p0done + 1, 9)).map((l, i) => (
+            <li key={l} className={cn("flex items-center gap-2", i < p0done ? "text-muted-foreground" : "font-semibold")}>
+              {i < p0done ? <CheckCircle2 className="size-3.5 text-success" /> : <Circle className="size-3.5 text-brand" />} {i + 1}. {l}
+            </li>
+          ))}
+        </ol>
+        {p0done < 9 ? <Button size="sm" variant="brand" className="w-full" onClick={() => actions.p0((p) => p0Next(p))}>{s.p0.active ? "Next Step" : "Start Demo"} →</Button> : <Pill tone="success">Workflow complete</Pill>}
+        {s.p0.active && <Button size="sm" variant="ghost" className="w-full" onClick={() => actions.p0Reset()}><RotateCcw /> Reset Demo</Button>}
+        <div className="border-t border-border pt-3 text-sm font-semibold">Classic: Agency + AI Collaboration</div>
         <ol className="space-y-1 text-xs">
           {GUIDED_LABELS.map((l, i) => (
             <li key={l} className={cn("flex items-center gap-2", i < step ? "text-muted-foreground line-through" : i === step ? "font-semibold" : "text-muted-foreground")}>
@@ -461,13 +474,14 @@ function EmptyState({ s, cid }: { s: State; cid: string }) {
   );
 }
 
-function MessageList({ s, cid, msgs, onOpenTask, onFollowUp }: { s: State; cid: string; msgs: Msg[]; onOpenTask: (id: string) => void; onFollowUp: () => void }) {
+function MessageList({ s, cid, msgs, onOpenTask, onFollowUp, onOpenP0 }: { s: State; cid: string; msgs: Msg[]; onOpenTask: (id: string) => void; onFollowUp: () => void; onOpenP0: (k: DrawerKind) => void }) {
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length]);
+  const p0 = cid === "freebeat" && s.biz !== "direct" ? s.p0.events : [];
+  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length, p0.length]);
   const openTask = (m: Msg) => onOpenTask(m.taskId ?? MAIN_TASK_ID);
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      {msgs.length === 0 ? <EmptyState s={s} cid={cid} /> : (
+      {msgs.length === 0 && p0.length === 0 ? <EmptyState s={s} cid={cid} /> : (
         <div className="mx-auto max-w-4xl space-y-1 px-4 py-6 md:px-8">
           {msgs.map((m) => {
             const who = WHO[m.from];
@@ -501,6 +515,28 @@ function MessageList({ s, cid, msgs, onOpenTask, onFollowUp }: { s: State; cid: 
                   {m.card === "readiness" && <div className="rounded-xl border-l-4 border-danger bg-card p-3 text-card-foreground"><ReadinessPanel /></div>}
                   {m.card === "resume" && !s.resumed && <Button variant="brand" size="sm" onClick={() => actions.resumeTask()}><Play /> Resume T-1024</Button>}
                   {m.card === "report" && <ReportSummary />}
+                </div>
+              </div>
+            );
+          })}
+          {p0.map((e) => {
+            const who = WHO[e.from];
+            const [name, role] = who.name.split(" · ");
+            const system = e.from === "system";
+            return (
+              <div key={e.id} className="group flex gap-3 rounded-xl px-2 py-2.5 hover:bg-ai-panel-elevated/30">
+                <div className={cn("grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold", who.cls)}>
+                  {who.ai ? <Bot className="size-4" /> : e.from === "system" ? <CheckCircle2 className="size-4" /> : "MC"}
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 text-xs">
+                    <span className="font-semibold text-ai-panel-foreground">{name}</span>
+                    {role && <span className="text-ai-panel-muted">{role}</span>}
+                    {who.ai && <span className="rounded bg-brand/15 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand">AI</span>}
+                    <span className="text-[10px] text-ai-panel-muted/70">{e.at}</span>
+                  </div>
+                  <div className={cn("max-w-2xl text-sm leading-relaxed", system ? "rounded-lg border border-dashed border-ai-panel-border px-3 py-2 text-ai-panel-muted" : "text-ai-panel-foreground/95")}><RichText text={e.text} /></div>
+                  {e.card && <P0CardView card={e.card} p={s.p0} open={onOpenP0} />}
                 </div>
               </div>
             );
@@ -607,6 +643,7 @@ function ImmersiveFrame({ s, cid, title, extra }: { s: State; cid: string; title
   const [drawer, setDrawer] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [ctxOpen, setCtxOpen] = useState(false);
+  const [p0Drawer, setP0Drawer] = useState<DrawerKind>(null);
   const followUpRef = useRef<() => void>(() => {});
   const u = useShellUtils();
   const msgs = s.messages.filter((m) => m.clientId === cid);
@@ -625,11 +662,13 @@ function ImmersiveFrame({ s, cid, title, extra }: { s: State; cid: string; title
           <OverflowMenu />
         </div>
       </header>
-      <MessageList s={s} cid={cid} msgs={msgs} onOpenTask={setDrawer} onFollowUp={() => followUpRef.current()} />
+      {cid === "freebeat" && s.biz !== "direct" && can.agency(s.role) && <P0Progress />}
+      <MessageList s={s} cid={cid} msgs={msgs} onOpenTask={setDrawer} onFollowUp={() => followUpRef.current()} onOpenP0={setP0Drawer} />
       <ComposerBridge s={s} cid={cid} followUpRef={followUpRef} />
       <TasksSheet s={s} cid={cid} open={tasksOpen} onOpenChange={setTasksOpen} onOpenTask={setDrawer} />
       <ContextSheet s={s} cid={cid} open={ctxOpen} onOpenChange={setCtxOpen} />
       <TaskDrawer taskId={drawer} onClose={() => setDrawer(null)} />
+      <P0Drawer kind={p0Drawer} onClose={() => setP0Drawer(null)} />
     </div>
   );
 }
